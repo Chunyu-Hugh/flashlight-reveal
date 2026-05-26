@@ -109,6 +109,61 @@ web/
 
 品牌色 · Brand colors：羊皮纸 `#f5f4ed` · 赤陶 `#c96442` · 墨黑 `#141413`
 
+## 🔮 路线图 · Roadmap
+
+**原始构想：IR 手电筒 + Wii Remote** — Johnny Lee 那种装置艺术里的经典做法。Wiimote 内置 IR 摄像头硬件 blob tracking，100Hz、亚像素、对环境光免疫。当前的 webcam 模式只是该愿景的过渡实现。
+
+**Original vision:** Johnny-Lee-style — IR flashlight tracked by a Wii Remote's onboard IR camera. Hardware blob tracking at 100Hz, sub-pixel, ambient-light-immune. The current webcam mode is an interim approximation.
+
+下面是为这个"光圈揭示"作品调研过的所有可行输入方式。✅ = 纯浏览器 · ⚠️ = 需 native bridge
+
+Below is the full survey of interaction modalities considered for this spotlight-reveal piece. ✅ = pure browser · ⚠️ = native bridge required
+
+### 🟢 纯浏览器候选 · Pure-browser candidates
+
+| 类别 · Category | 方式 · Modality | 映射 · Mapping | 关键 API · API/Lib |
+|---|---|---|---|
+| 指向 · Pointing | **IR webcam + IR LED 手电** | 现有亮点检测直接复用 · drops into existing brightness-peak code | (no change) |
+| | **Wiimote (WebHID)** | IR 摄像头 → XY，加速度 → 半径 | `wiimote-webhid` |
+| | Joy-Con (WebHID) | 摇杆+陀螺仪 · stick + IMU | `joy-con-webhid` (Tomayac) |
+| | **Wacom 数位板** | 笔位置 + **笔压 = 半径** · pen XY + pressure | HTML5 Pointer Events |
+| | 激光笔 + webcam | HSV 检测红/绿点 · color-blob | DIY |
+| | AR 标记 (ArUco/AprilTag) | 打印纸标记当"灯笼" · printed marker as lantern | `js-aruco2` |
+| | 游戏手柄 (Xbox/PS) | 摇杆+扳机 · stick + trigger | Web Gamepad API |
+| | SpaceMouse 6DoF | 6 轴推杆 · 6-axis puck | `spacemouse-webhid` |
+| 身体 · Body | **MediaPipe Pose 全身** | 手腕坐标 + 肩宽 = 半径 · wrist + shoulder span | `@mediapipe/tasks-vision` |
+| | MediaPipe FaceMesh | 鼻尖 + 张嘴 = 半径 · nose + mouth-open | 同上 |
+| | WebGazer 视线追踪 | 看哪揭哪 · look to reveal | `WebGazer.js` |
+| 手机 · Phone | **手机当魔杖** | 陀螺仪+WebRTC，二维码配对 · gyro + WebRTC, QR pair | DeviceOrientation API + PeerJS |
+| | 手机当触摸板 | 远程触屏 · remote touch | 同上 + `touchmove` |
+| 音频 · Audio | 音量 → 半径 | 吹/吼/拍手 · blow/shout/clap | Web Audio `AnalyserNode` |
+| | **呼吸检测** | 吸气放大、呼气收缩 · inhale/exhale | Web Audio band-pass |
+| | 哨音音高 | 音高对应 X 轴 · pitch → X | `pitchy` |
+| | 语音命令 | "揭示"、"放大"·  voice commands | Web Speech API (Chromium) |
+| 专业 · Pro | Web MIDI | nanoKONTROL / Launchpad 推子 · faders | Web MIDI API |
+| | OSC over WebSocket | TouchDesigner/Max 推数据 · TD/Max push | `osc-js` |
+| 生理 · Bio | rPPG 心率 | 心跳脉动光圈 · pulse with heartbeat | `heartbeat-js` |
+| | Muse EEG (BLE) | α 波 → 越静画卷开越大 · alpha → reveal | `web-muse` |
+| 其他 · Misc | Pixy2 / OpenMV (Web Serial) | 板载 blob 追踪 · onboard blob track | Web Serial API |
+
+### 🟡 需 native bridge · Native-bridge required
+
+| 方式 · Modality | 优势 · Why |
+|---|---|
+| Kinect v2 / Azure Kinect | 全身骨架 + 深度 · skeletal + depth (Azure EOL) |
+| Intel RealSense / OAK-D | 深度遮罩做手掌剪影 · depth mask hand silhouette |
+| Leap Motion / Ultraleap | 手部骨架精度最高 · highest-fidelity hand tracking |
+| Tobii 眼动仪 | 真正的高精度视线 · production-grade gaze |
+| FLIR Lepton 热像仪 | 全黑环境也能用 · works in pitch dark |
+
+### ⭐ 最贴合本项目气质的 5 个方向 · Best matches for this piece
+
+1. **IR webcam + IR LED 手电** — 兑现原始 Wiimote 愿景的"最低改动版"，代码零修改 · least-effort delivery of the IR-flashlight vision, no code change
+2. **Wacom 笔压 = 半径** — 水墨主题 + 笔压自然闭环 · ink-painting meets ink pen
+3. **呼吸 = 半径 + MediaPipe Pose 手腕 = 位置** — 全沉浸双模态 · immersive dual-modal, hands-free
+4. **手机当魔杖（WebRTC 配对）** — 多观众画廊最实用 · best for multi-visitor gallery
+5. **OSC from TouchDesigner** — 装置艺术圈标准做法，策展人可控场 · industry-standard install pattern
+
 ## 📄 License
 
 MIT — 随便改、随便商用 · Do whatever you want, commercial use OK.

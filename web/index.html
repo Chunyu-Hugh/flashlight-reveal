@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>墨卷 · Ink Scroll</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   墨卷 DESIGN SYSTEM
+   Parchment · Terracotta · Serif · Whisper borders
+   ═══════════════════════════════════════════════ */
+:root{
+  --ink:#141413;--stone:#5e5d59;--clay:#c96442;--parchment:#f5f4ed;
+  --ivory:#faf9f5;--cream-border:#f0eee6;--charcoal:#30302e;--warm-silver:#b0aea5;
+  --r-sm:4px;--r-md:8px;--r-lg:12px;--r-xl:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--parchment);font-family:system-ui,-apple-system,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+canvas#display{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
+#pip{position:fixed;bottom:10px;right:10px;width:160px;border:1px solid var(--cream-border);border-radius:var(--r-md);z-index:10;display:none}
+/* ── UI Overlay ── */
+#ui{
+  position:fixed;top:12px;left:12px;z-index:20;
+  background:rgba(20,20,19,.42);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  color:var(--warm-silver);font-size:10px;line-height:1.7;
+  padding:8px 12px;border-radius:var(--r-md);
+  border:1px solid rgba(255,255,255,.06);
+  letter-spacing:.02em;
+}
+#ui b{color:var(--clay);font-weight:600}
+#ui .divider{color:rgba(255,255,255,.12);margin:0 4px}
+
+/* ── Start Screen ── */
+#start-screen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--parchment);color:var(--ink);
+  gap:0;overflow-y:auto;padding:40px 20px;
+}
+#start-screen .brand{
+  font-family:'Noto Serif SC',serif;
+  font-size:3rem;font-weight:700;line-height:1.15;letter-spacing:-.02em;
+  color:var(--ink);
+}
+#start-screen .tagline{
+  font-size:1rem;color:var(--stone);margin-top:6px;margin-bottom:28px;
+  font-weight:400;letter-spacing:.01em;
+}
+.mode-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:8px;max-width:280px;width:100%;margin-bottom:24px;
+}
+.mode-card{
+  padding:12px 8px;
+  border:1px solid var(--cream-border);
+  border-radius:var(--r-lg);
+  cursor:pointer;text-align:center;
+  background:var(--ivory);
+  transition:border-color .2s,transform .15s;
+}
+.mode-card:hover{border-color:var(--stone);transform:scale(1.02)}
+.mode-card.active{border-color:var(--clay);background:#fdf5f2}
+.mode-card .icon{font-size:1.2rem;display:block;margin-bottom:3px}
+.mode-card .name{font-size:10px;font-weight:600;color:var(--ink)}
+.mode-card .req{font-size:8px;color:var(--stone);margin-top:1px}
+.cat-label{
+  grid-column:1/-1;font-size:9px;color:var(--stone);padding:8px 0 4px;
+  letter-spacing:.06em;text-transform:uppercase;font-weight:600;
+}
+#btn-start{
+  padding:12px 40px;font-size:15px;font-weight:600;
+  border:none;border-radius:var(--r-md);
+  cursor:pointer;background:var(--clay);color:var(--ivory);
+  transition:background .2s;
+  letter-spacing:.01em;
+}
+#btn-start:hover{background:#b8583a}
+.hint{
+  font-size:10px;color:var(--stone);max-width:500px;text-align:center;
+  line-height:1.6;margin-top:20px;
+}
+.hint b{color:var(--ink);font-weight:600}
+
+/* ── Scene Nav ── */
+.scene-nav{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  z-index:30;display:flex;gap:10px;opacity:0;transition:opacity .4s;
+}
+.scene-dot{width:8px;height:8px;border-radius:50%;background:var(--stone);transition:all .25s}
+.scene-dot.active{background:var(--clay);box-shadow:0 0 6px rgba(201,100,66,.35)}
+
+/* ── Gesture HUD ── */
+#gh{
+  position:fixed;bottom:56px;left:50%;transform:translateX(-50%);
+  color:var(--clay);font-size:12px;z-index:30;opacity:0;transition:opacity .3s;
+  font-weight:500;letter-spacing:.02em;
+}
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <div class="brand">墨卷</div>
+  <div class="tagline">光照之处，墨色生辉</div>
+  <div class="mode-grid" id="mg"></div>
+  <button id="btn-start">展开画卷</button>
+  <p class="hint">
+    <b>M</b> 切换模式&ensp;<b>← →</b> 切换场景&ensp;<b>1/2/3</b> 风格&ensp;<b>X</b> 镜像
+    <br><b>F</b> 全屏&ensp;<b>Q</b> 退出&ensp;<b>滚轮</b> 光圈&ensp;<b>[ ]</b> 灵敏度
+  </p>
+</div>
+
+<canvas id="display"></canvas>
+<canvas id="pip"></canvas>
+<div id="gh"></div>
+<div class="scene-nav" id="scene-nav"></div>
+<div id="ui">
+  <div>🎯 <b id="hm">-</b> <span class="divider">·</span> 🏔 <b id="hsc">-</b></div>
+  <div>🎨 <b id="hs">-</b> <span class="divider">·</span> ⭕ <b id="hr">-</b></div>
+  <div id="he"></div>
+  <div>⚡ <b id="hf">-</b> fps</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js"></script>
+<script>
+// ═══════════════════════════════════════════
+// 墨卷 · Ink Scroll — Core Engine
+// ═══════════════════════════════════════════
+
+// ── State ──
+const S={
+  mode:'mouse',scene:0,style:'edges',radius:140,threshold:50,camSens:1.0,
+  smooth:{x:-1,y:-1},alpha:.3,mirrorX:true,running:false,fps:0,
+  mouseX:window.innerWidth/2,mouseY:window.innerHeight/2,
+  hlm:null,gesture:'none',hpos:null,lastHx:0,lastHy:0,
+  transition:{active:false,from:null,alpha:0}
+};
+const D=document.getElementById('display'),ctx=D.getContext('2d'),
+  pip=document.getElementById('pip'),pipCtx=pip.getContext('2d'),
+  gh=document.getElementById('gh'),sceneNav=document.getElementById('scene-nav');
+let hiCvs,hiCtx,mkCvs,mkCtx,wkCvs,wkCtx,scCvs,scCtx,target,
+  vid=null,str=null,DW,DH,VW=640,VH=480,pipW=160,pipH=90,fc=0,ft=performance.now();
+let hands=null,hr=false;
+
+// ── Scene Names & Nav Dots ──
+const sceneNames=['🏔 山水','🎋 竹林','❄️ 雪景','🌸 花鸟','🌌 星空'];
+for(let i=0;i<5;i++){
+  const d=document.createElement('div');
+  d.className='scene-dot'+(i===0?' active':'');
+  sceneNav.appendChild(d);
+}
+
+// ═══════════════════════════════════════════
+// 5 SCENES — AI-generated Chinese ink paintings
+// ═══════════════════════════════════════════
+const sceneImages=[];
+const sceneFiles=['shanshui.png','bamboo.png','snow.png','flowers.png','stars.png'];
+
+function preloadImages(){
+  return Promise.all(sceneFiles.map((f,i)=>{
+    return new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.onload=()=>{sceneImages[i]=img;resolve();};
+      img.onerror=reject;
+      img.src='scenes/'+f;
+    });
+  }));
+}
+function initScene(){
+  scCvs=document.createElement('canvas');scCvs.width=DW;scCvs.height=DH;
+  scCtx=scCvs.getContext('2d');
+}
+function drawScene(t){
+  const g=scCtx,W=DW,H=DH;
+  scCvs.width=W;scCvs.height=H;
+  const img=sceneImages[S.scene];
+  if(img){
+    // Contain: fit whole image, letterbox if needed
+    const iw=img.naturalWidth,ih=img.naturalHeight;
+    const scale=Math.min(W/iw,H/ih);
+    const dw=iw*scale,dh=ih*scale,dx=(W-dw)/2,dy=(H-dh)/2;
+    // Background letterbox
+    g.fillStyle='#1a1a18';g.fillRect(0,0,W,H);
+    g.drawImage(img,0,0,iw,ih,dx,dy,dw,dh);
+    // Animated overlay (mist, birds, snow, petals)
+    animateOverlay(g,W,H,dx,dy,dw,dh,t);
+    // Store image bounds for spotlight coordinate mapping
+    S.imgBounds={x:dx,y:dy,w:dw,h:dh};
+  }else{
+    g.fillStyle=['#f5f0e8','#e8f0e0','#dce8f0','#faf5ee','#0a0a2e'][S.scene];
+    g.fillRect(0,0,W,H);
+    S.imgBounds=null;
+  }
+}
+
+// ═══════════════════════════════════════════
+// ANIMATED OVERLAY — Rich atmospheric effects
+// All effects confined within image bounds (ix,iy,iw,ih).
+// Every scene gets a distinct, highly-visible animation layer.
+// Opacities boosted 2-3× for clear visibility through spotlight.
+// ═══════════════════════════════════════════
+function animateOverlay(g,W,H,ix,iy,iw,ih,t){
+  const s=S.scene;
+  const PI=Math.PI;
+  // ── Shared: drifting mist/wisps (all scenes) ──
+  for(let i=0;i<16;i++){
+    const mx=ix+((i*.0625+t*.012)%1)*iw;
+    const my=iy+ih*(.12+.76*Math.sin(i*2.2+t*.04));
+    const mw=iw*(.07+.05*Math.sin(i+t*.08));
+    const mh=mw*.35;
+    g.fillStyle='rgba(255,255,245,.10)';
+    g.beginPath();g.ellipse(mx,my,mw,mh,Math.sin(i+t*.05)*.4,0,PI*2);g.fill();
+  }
+
+  if(s===0){ // 🏔 山水 — flocks of birds + drifting clouds
+    // Clouds
+    for(let i=0;i<6;i++){
+      const cx=ix+((i*.2+t*.025)%1.3-.15)*iw;
+      const cy=iy+ih*(.05+i*.07);
+      g.fillStyle='rgba(255,255,255,.16)';
+      g.beginPath();g.ellipse(cx,cy,iw*.14,ih*.05,0,0,PI*2);g.fill();
+      g.beginPath();g.ellipse(cx+iw*.07,cy-ih*.015,iw*.10,ih*.04,0,0,PI*2);g.fill();
+    }
+    // Birds — 10 flocks of 6 each
+    for(let f=0;f<10;f++){
+      const baseX=ix+iw*(.10+(f*.09));const baseY=iy+ih*(.04+f%3*.05);
+      const spread=iw*.10;
+      for(let b=0;b<6;b++){
+        const bx=baseX+((t*45+f*71+b*107)%(spread*2))-spread;
+        const by=baseY+Math.sin(t*1.5+f+b)*10;
+        g.strokeStyle='rgba(25,25,20,.55)';g.lineWidth=1.4;
+        g.beginPath();g.arc(bx-3.5,by,3.5,PI*.15,PI*.85);g.stroke();
+        g.beginPath();g.arc(bx+3.5,by,3.5,PI*.15,PI*.85);g.stroke();
+      }
+    }
+  }else if(s===1){ // 🎋 竹林 — fireflies + swaying mist
+    // Fireflies — 80 glowing dots, brighter
+    for(let i=0;i<80;i++){
+      const fx=ix+((i*.114+t*.01)%1.1-.05)*iw;
+      const fy=iy+((i*.083+t*.018)%1.05-.025)*ih;
+      const pulse=.3+.7*Math.sin(t*6+i*1.9);
+      g.fillStyle=`rgba(200,255,140,${.28*pulse})`;
+      g.shadowColor='rgba(160,255,100,.35)';g.shadowBlur=8;
+      g.beginPath();g.arc(fx,fy,2+Math.sin(i)*.8,0,PI*2);g.fill();
+      g.shadowBlur=0;
+    }
+    // Swaying bamboo tips
+    for(let i=0;i<8;i++){
+      const bx=ix+iw*(.10+i*.10);const by=iy+ih*(.04+i%3*.04);
+      g.strokeStyle='rgba(50,60,35,.22)';g.lineWidth=1.2;
+      g.beginPath();g.moveTo(bx,by+ih*.28);
+      g.quadraticCurveTo(bx+Math.sin(t*2+i)*8,by+ih*.14,bx+Math.sin(t*2.2+i)*14,by);
+      g.stroke();
+    }
+  }else if(s===2){ // ❄️ 雪景 — blizzard (dense, fast)
+    // Heavy snow — 150 flakes
+    for(let i=0;i<150;i++){
+      const seed=i*.0593;
+      const sx=ix+((seed*211+t*(.006+.003*Math.sin(i)))%1.08-.04)*iw;
+      const sy=iy+((seed*149+t*(.014+.006*Math.cos(i)))%1.08-.04)*ih;
+      const sz=.6+Math.abs(Math.sin(seed*41))*4.5;
+      const wob=Math.sin(t*3+seed*23)*10;
+      g.fillStyle='rgba(255,255,255,.72)';
+      g.beginPath();g.arc(sx+wob,sy,sz,0,PI*2);g.fill();
+    }
+    // Ground mist banks
+    for(let i=0;i<6;i++){
+      const mx=ix+((i*.18+t*.02)%1.2-.1)*iw;
+      g.fillStyle='rgba(255,255,250,.12)';
+      g.beginPath();g.ellipse(mx,iy+ih*(.72+.06*Math.sin(i)),iw*.28,ih*.06,0,0,PI*2);g.fill();
+    }
+  }else if(s===3){ // 🌸 花鸟 — dense petals + butterflies
+    // Petals — 80 falling, swirling
+    for(let i=0;i<80;i++){
+      const seed=i*.0371;
+      const px=ix+((seed*229+t*(.005+.003*Math.sin(i)))%1.10-.05)*iw;
+      const py=iy+((seed*173+t*(.012+.006*Math.cos(i*1.5)))%1.10-.05)*ih;
+      const angle=t*2.5+seed*PI*2;
+      g.fillStyle=`rgba(${255-Math.sin(seed)*20},${170+Math.sin(seed*2)*40},${195-Math.sin(seed*3)*15},.55)`;
+      g.save();g.translate(px,py);g.rotate(angle*.7);
+      g.beginPath();g.ellipse(0,0,3+Math.sin(seed)*2,1.5,0,0,PI*2);g.fill();
+      g.restore();
+    }
+    // Butterflies — 14, faster figure-8s
+    for(let i=0;i<14;i++){
+      const bx=ix+iw*(.08+i*.07)+Math.sin(t*1.8+i*2.2)*iw*.15;
+      const by=iy+ih*(.15+i%3*.18)+Math.cos(t*1.5+i*1.9)*ih*.10;
+      const wingAngle=Math.sin(t*10+i)*.5;
+      g.fillStyle='rgba(255,140,170,.50)';
+      g.save();g.translate(bx,by);
+      g.beginPath();g.ellipse(-3.5,0,3.5,2.5,wingAngle,0,PI*2);g.fill();
+      g.beginPath();g.ellipse(3.5,0,3.5,2.5,-wingAngle,0,PI*2);g.fill();
+      g.restore();
+    }
+  }else if(s===4){ // 🌌 星空 — shooting stars, twinkling, aurora
+    // Multiple shooting stars at different phases
+    for(let i=0;i<5;i++){
+      const phase=(t*.12+i*.2)%2.2;
+      if(phase>1.2&&phase<2.2){
+        const prog=(phase-1.2);
+        const ssx=ix+iw*(.12+i*.18)+prog*100;
+        const ssy=iy+ih*(.04+i*.08)+prog*50;
+        g.strokeStyle=`rgba(255,255,255,${.7*(1-prog)})`;g.lineWidth=2;
+        g.beginPath();g.moveTo(ssx,ssy);g.lineTo(ssx-40,ssy+20);g.stroke();
+      }
+    }
+    // Twinkling stars — 100
+    for(let i=0;i<100;i++){
+      const seed=i*.0143;
+      const tx=ix+seed*iw;const ty=iy+Math.sin(seed*41)*ih*.55;
+      const twinkle=.15+.85*Math.abs(Math.sin(t*4.5+seed*83));
+      if(twinkle>.35){
+        g.fillStyle=`rgba(255,255,220,${twinkle*.45})`;
+        g.beginPath();g.arc(tx,ty,1+twinkle*1.2,0,PI*2);g.fill();
+      }
+    }
+    // Aurora-like bands
+    for(let i=0;i<4;i++){
+      const ax=ix+iw*(.15+i*.22);
+      const ay=iy+ih*(.06+i*.03);
+      g.strokeStyle=`rgba(100,180,230,${.05+.03*Math.sin(t*.6+i)})`;g.lineWidth=14;
+      g.beginPath();
+      for(let x=0;x<iw*.45;x+=6){
+        const yy=Math.sin(x*.012+t*.5+i)*12+Math.sin(x*.025+t*.7)*8;
+        x===0?g.moveTo(ax+x,ay+yy):g.lineTo(ax+x,ay+yy);
+      }
+      g.stroke();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// HIDDEN LAYER — Generated once per scene from static image only
+// ═══════════════════════════════════════════
+function genHidden(){
+  if(!target)return;const w=target.width,h=target.height;
+  if(!hiCvs){hiCvs=document.createElement('canvas');hiCtx=hiCvs.getContext('2d');mkCvs=document.createElement('canvas');mkCtx=mkCvs.getContext('2d');wkCvs=document.createElement('canvas');wkCtx=wkCvs.getContext('2d');}
+  hiCvs.width=mkCvs.width=w;hiCvs.height=mkCvs.height=h;
+  // Use a clean canvas with the static image only (no animation overlay)
+  const tmpCvs=document.createElement('canvas');tmpCvs.width=w;tmpCvs.height=h;
+  const tmpCtx=tmpCvs.getContext('2d');
+  tmpCtx.fillStyle='#1a1a18';tmpCtx.fillRect(0,0,w,h);
+  const img=sceneImages[S.scene];
+  if(img){
+    const iw=img.naturalWidth,ih=img.naturalHeight;
+    const scale=Math.min(w/iw,h/ih);
+    const dw=iw*scale,dh=ih*scale,dx=(w-dw)/2,dy=(h-dh)/2;
+    tmpCtx.drawImage(img,0,0,iw,ih,dx,dy,dw,dh);
+  }
+  const src=tmpCtx.getImageData(0,0,w,h);
+  if(S.style==='edges')hiCtx.putImageData(sobel(src,w,h),0,0);
+  else if(S.style==='sketch')hiCtx.putImageData(sk(src,w,h),0,0);
+  else hiCtx.putImageData(dk(src,w,h),0,0);
+}
+function sobel(d,w,h){
+  const g=new Float32Array(w*h);for(let i=0;i<w*h;i++)g[i]=d.data[i*4]*.299+d.data[i*4+1]*.587+d.data[i*4+2]*.114;
+  const o=new ImageData(w,h),p=o.data;
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+    const tl=g[(y-1)*w+x-1],tc=g[(y-1)*w+x],tr=g[(y-1)*w+x+1],ml=g[y*w+x-1],mr=g[y*w+x+1],bl=g[(y+1)*w+x-1],bc=g[(y+1)*w+x],br=g[(y+1)*w+x+1];
+    const gx=-tl+tr-2*ml+2*mr-bl+br,gy=-tl-2*tc-tr+bl+2*bc+br;
+    const mag=Math.min(255,Math.sqrt(gx*gx+gy*gy)),val=mag>40?255:mag*.2;
+    const idx=(y*w+x)*4;p[idx]=p[idx+1]=p[idx+2]=val;p[idx+3]=255;
+  }return o;
+}
+function sk(d,w,h){
+  wkCtx.putImageData(new ImageData(new Uint8ClampedArray(d.data.map((v,i)=>i%4<3?255-v:255)),w,h),0,0);
+  wkCtx.filter='blur(8px)';wkCtx.drawImage(wkCvs,0,0);wkCtx.filter='none';
+  const b=wkCtx.getImageData(0,0,w,h),o=new ImageData(w,h);
+  for(let i=0;i<d.data.length;i+=4)for(let c=0;c<3;c++){const den=255-b.data[i+c];o.data[i+c]=den===0?255:Math.min(255,d.data[i+c]*255/den);}
+  return o;
+}
+function dk(d,w,h){
+  const o=new ImageData(w,h);
+  for(let i=0;i<d.data.length;i+=4){o.data[i]=d.data[i]*.1;o.data[i+1]=d.data[i+1]*.1;o.data[i+2]=d.data[i+2]*.1;o.data[i+3]=255;}
+  return o;
+}
+
+// ═══════════════════════════════════════════
+// DETECTION — Flashlight
+// ═══════════════════════════════════════════
+function spF(id){
+  const dd=id.data,len=dd.length/4,lu=new Float32Array(len);
+  for(let i=0;i<len;i++)lu[i]=dd[i*4]*.299+dd[i*4+1]*.587+dd[i*4+2]*.114;
+  const srt=new Float32Array(lu);srt.sort();
+  const th=srt[Math.min(Math.floor(len*S.threshold/100),len-1)];
+  let sx=0,sy=0,sw=0,cnt=0;
+  for(let y=0;y<id.height;y++)for(let x=0;x<id.width;x++){
+    const l=lu[y*id.width+x];if(l>th){const wt=l-th;sx+=x*wt;sy+=y*wt;sw+=wt;cnt++;}
+  }return cnt<20?null:smap(sx/sw,sy/sw);
+}
+function smap(cx,cy){
+  // Map camera coords to IMAGE BOUNDS (not full canvas)
+  // sens 1.0 = direct; 1.8 = center 55% of cam → full painting
+  const sens=S.camSens||1;
+  let nx=((cx/VW-0.5)*sens+0.5);
+  let ny=((cy/VH-0.5)*sens+0.5);
+  // Clamp to 0-1
+  nx=Math.max(0,Math.min(1,nx));ny=Math.max(0,Math.min(1,ny));
+  let sx=nx*DW,sy=ny*DH;
+  if(S.imgBounds){
+    const ib=S.imgBounds;
+    sx=ib.x+nx*ib.w;sy=ib.y+ny*ib.h;
+  }
+  S.smooth.x<0?(S.smooth.x=sx,S.smooth.y=sy,S.alpha=.5):(S.smooth.x=S.alpha*sx+(1-S.alpha)*S.smooth.x,S.smooth.y=S.alpha*sy+(1-S.alpha)*S.smooth.y,S.alpha=.3);
+  return{x:S.smooth.x,y:S.smooth.y};
+}
+
+// ═══════════════════════════════════════════
+// HAND GESTURE (MediaPipe Hands)
+// ═══════════════════════════════════════════
+function iH(){
+  if(hr)return;
+  hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${f}`});
+  hands.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:.7,minTrackingConfidence:.5});
+  hands.onResults(r=>{
+    if(r.multiHandLandmarks?.length){
+      S.hlm=r.multiHandLandmarks[0];S.gesture=rg(S.hlm);
+      const cx=(S.hlm[0].x+S.hlm[9].x)/2,cy=(S.hlm[0].y+S.hlm[9].y)/2;
+      // Sensitivity amplification mapped to image bounds
+      const sens=S.camSens||1;
+      let nx=((cx-0.5)*sens+0.5),ny=((cy-0.5)*sens+0.5);
+      nx=Math.max(0,Math.min(1,nx));ny=Math.max(0,Math.min(1,ny));
+      let hx=nx*DW,hy=ny*DH;
+      if(S.imgBounds){const ib=S.imgBounds;hx=ib.x+nx*ib.w;hy=ib.y+ny*ib.h;}
+      S.hpos={x:hx,y:hy};
+    }else{S.hlm=null;S.gesture='none';S.hpos=null;}
+  });hr=true;
+}
+function rg(lm){
+  const fs=[{t:8,p:6},{t:12,p:10},{t:16,p:14},{t:20,p:18}];let e=0;
+  for(const f of fs)if(lm[f.t].y<lm[f.p].y)e++;
+  if(e>=3)return'open';if(e===0)return'fist';if(e===1&&lm[8].y<lm[6].y)return'point';return'open';
+}
+function detectSwipe(cx,cy){
+  if(S.lastHx===0){S.lastHx=cx;S.lastHy=cy;return;}
+  const dx=cx-S.lastHx;if(Math.abs(dx)>.25&&S.gesture==='open'){
+    if(dx>0)changeScene((S.scene+1)%5);else changeScene((S.scene+4)%5);
+    S.lastHx=cx;S.lastHy=cy;
+  }
+}
+async function pH(){if(!hr||!wkCvs)return;try{hands.send({image:wkCvs});}catch(e){}}
+
+// ═══════════════════════════════════════════
+// 2 INTERACTION MODES
+// ═══════════════════════════════════════════
+const M={
+  flashlight:{icon:'🔦',name:'手电筒',init(){},spot(id){return spF(id);},cln(){},ex:()=>'',needCam:true,req:'📷'},
+  hand:{icon:'✋',name:'手势识别',init(){iH();},spot(id){if(S.hpos&&S.gesture!=='fist')return{x:S.hpos.x,y:S.hpos.y,radius:S.gesture==='point'?25:S.radius};return null;},cln(){},ex:()=>`🖐 ${({open:'张开',fist:'握拳',point:'聚光'})[S.gesture]||'-'}`,needCam:true,req:'📷'},
+  mouse:{icon:'🖱',name:'鼠标跟随',init(){},spot(id){return{x:S.mouseX,y:S.mouseY,radius:S.radius};},cln(){},ex:()=>'',needCam:false,req:''},
+};
+
+// ═══════════════════════════════════════════
+// SCENE SWITCH — Clean crossfade, no particles
+// ═══════════════════════════════════════════
+function changeScene(n){
+  if(n===S.scene)return;
+  // Capture old scene for crossfade
+  const oldImg=document.createElement('canvas');oldImg.width=DW;oldImg.height=DH;
+  oldImg.getContext('2d').drawImage(scCvs,0,0);
+  S.scene=n;
+  drawScene(performance.now()/1000);target=scCvs;genHidden();
+  S.transition={active:true,from:oldImg,alpha:1};
+  // Update UI
+  document.querySelectorAll('.scene-dot').forEach((d,i)=>d.classList.toggle('active',i===n));
+  document.getElementById('hsc').textContent=sceneNames[n];
+  sceneNav.style.opacity='1';setTimeout(()=>sceneNav.style.opacity='0',2000);
+}
+
+// ═══════════════════════════════════════════
+// MAIN RENDER LOOP
+// ═══════════════════════════════════════════
+function processFrame(){
+  try{
+  if(!S.running||!target)return;
+  const m=M[S.mode];
+  // Camera frame (skip if cam unavailable)
+  if(vid&&vid.readyState>=2){
+    wkCtx.save();if(S.mirrorX){wkCtx.translate(VW,0);wkCtx.scale(-1,1);}
+    wkCtx.drawImage(vid,0,0,VW,VH);wkCtx.restore();
+  }
+  const fd=wkCvs?wkCtx.getImageData(0,0,VW,VH):null;
+  let spot=fd?m.spot(fd):null;
+  // Only fall back to mouse in mouse mode (not camera modes)
+  if(!spot&&S.mode==='mouse'){spot={x:S.mouseX,y:S.mouseY,radius:S.radius};}
+  // Draw color scene (with animation)
+  drawScene(performance.now()/1000);target=scCvs;
+
+  // Render: camera ghost → ink layer → clip spot → reveal color
+  ctx.clearRect(0,0,DW,DH);
+  // Camera feed ghost — within image bounds for alignment
+  if(vid&&vid.readyState>=2&&S.imgBounds){
+    const ib=S.imgBounds;
+    ctx.save();ctx.globalAlpha=.15;
+    if(S.mirrorX){ctx.translate(ib.x+ib.w,ib.y);ctx.scale(-1,1);ctx.drawImage(vid,0,0,ib.w,ib.h);}
+    else{ctx.drawImage(vid,ib.x,ib.y,ib.w,ib.h);}
+    ctx.restore();
+  }
+  // Ink layer
+  ctx.drawImage(hiCvs,0,0,DW,DH);
+  if(spot){
+    const r=spot.radius||S.radius;
+    ctx.save();
+    // Clip to image bounds first (avoid revealing black letterbox)
+    if(S.imgBounds){
+      const ib=S.imgBounds;
+      ctx.beginPath();ctx.rect(ib.x,ib.y,ib.w,ib.h);ctx.clip();
+    }
+    // Then clip to circle
+    ctx.beginPath();ctx.arc(spot.x,spot.y,r,0,Math.PI*2);ctx.clip();
+    ctx.drawImage(scCvs,0,0,DW,DH);
+    ctx.restore();
+    // Spotlight ring — terracotta whisper
+    ctx.strokeStyle='rgba(201,100,66,.22)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(spot.x,spot.y,r,0,Math.PI*2);ctx.stroke();
+  }
+
+  // Scene transition crossfade (clean, no particles)
+  if(S.transition.active){
+    S.transition.alpha-=.03;
+    if(S.transition.alpha<=0){S.transition.active=false;S.transition.from=null;}
+    else{ctx.save();ctx.globalAlpha=S.transition.alpha;ctx.drawImage(S.transition.from,0,0);ctx.globalAlpha=1;ctx.restore();}
+  }
+
+  // PIP
+  if(pip.style.display!=='none'&&vid){
+    pipCtx.save();if(S.mirrorX){pipCtx.translate(pipW,0);pipCtx.scale(-1,1);}
+    pipCtx.drawImage(vid,0,0,pipW,pipH);pipCtx.restore();
+  }
+
+  // Gesture HUD
+  gh.textContent=m.ex()||'';gh.style.opacity=m.ex()?1:0;
+
+  // FPS
+  fc++;const now=performance.now();if(now-ft>=1000){S.fps=fc;fc=0;ft=now;}
+
+  // Update UI
+  document.getElementById('hf').textContent=S.fps;
+  document.getElementById('hm').textContent=`${m.icon} ${m.name}`;
+  document.getElementById('hs').textContent={edges:'墨线',sketch:'素描',dark:'暗调'}[S.style];
+  document.getElementById('hr').textContent=S.radius+' @'+S.camSens+'x';
+  document.getElementById('he').textContent=m.ex()||'';
+
+  requestAnimationFrame(processFrame);
+
+  // Async MediaPipe hand dispatch
+  if(S.mode==='hand'&&fc%10===0)setTimeout(pH,0);
+  }catch(e){console.error('Frame error:',e.message);}
+}
+
+// ═══════════════════════════════════════════
+// CAMERA
+// ═══════════════════════════════════════════
+async function initCam(){
+  if(str){str.getTracks().forEach(t=>t.stop());}
+  try{str=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});}
+  catch(e){str=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
+  vid=document.createElement('video');vid.srcObject=str;vid.setAttribute('playsinline','');
+  await vid.play();
+  // Use native MacBook camera resolution (e.g. 1280×720), not forced 640×480
+  VW=vid.videoWidth;VH=vid.videoHeight;
+  // PIP: maintain camera aspect ratio, max width 160px
+  pipW=160;pipH=Math.round(160*VH/VW);
+  pip.width=pipW;pip.height=pipH;pip.style.height=pipH+'px';
+  if(!wkCvs){wkCvs=document.createElement('canvas');wkCtx=wkCvs.getContext('2d');}
+  wkCvs.width=VW;wkCvs.height=VH;
+}
+
+// ═══════════════════════════════════════════
+// START / STOP
+// ═══════════════════════════════════════════
+async function start(){
+  DW=window.innerWidth;DH=window.innerHeight;
+  D.width=DW;D.height=DH;
+  // Preload Grok images
+  try{await preloadImages();}catch(e){console.warn('Image preload:',e.message);}
+  initScene();drawScene(0);target=scCvs;genHidden();
+  try{await initCam();}catch(e){console.warn('Camera unavailable:',e.message);}
+  M[S.mode].init();
+  S.running=true;S.smooth.x=S.smooth.y=-1;
+  pip.style.display='block';
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('hsc').textContent=sceneNames[S.scene];
+  sceneNav.style.opacity='1';
+  requestAnimationFrame(processFrame);
+}
+function stop(){
+  S.running=false;M[S.mode].cln();S.transition.active=false;
+  if(str){str.getTracks().forEach(t=>t.stop());str=null;}
+  pip.style.display='none';
+  document.getElementById('start-screen').style.display='flex';
+}
+function wM(name){
+  if(S.running){
+    M[S.mode].cln();S.mode=name;S.smooth.x=S.smooth.y=-1;
+    M[name].init();
+  }else{S.mode=name;}
+  document.querySelectorAll('.mode-card').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`[data-mode="${name}"]`)?.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// KEYBOARD & MOUSE
+// ═══════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(!S.running)return;
+  switch(e.key.toLowerCase()){
+    case'q':case'escape':stop();break;
+    case'm':{const ks=Object.keys(M);wM(ks[(ks.indexOf(S.mode)+1)%ks.length]);break;}
+    case'arrowleft':changeScene((S.scene+4)%5);break;
+    case'arrowright':changeScene((S.scene+1)%5);break;
+    case'1':S.style='edges';genHidden();break;
+    case'2':S.style='sketch';genHidden();break;
+    case'3':S.style='dark';genHidden();break;
+    case'f':document.fullscreenElement?document.exitFullscreen():document.body.requestFullscreen().catch(()=>{});break;
+    case'=':case'+':S.radius=Math.min(350,S.radius+8);break;
+    case'-':S.radius=Math.max(15,S.radius-8);break;
+    case'[':S.camSens=parseFloat(Math.max(0.5,S.camSens-0.2).toFixed(1));break;
+    case']':S.camSens=parseFloat(Math.min(5.0,S.camSens+0.2).toFixed(1));break;
+    case'r':S.smooth.x=S.smooth.y=-1;break;
+    case'x':S.mirrorX=!S.mirrorX;break;
+  }
+});
+// Mouse/trackpad tracking — spotlight follows cursor
+D.addEventListener('mousemove',e=>{S.mouseX=e.clientX;S.mouseY=e.clientY;});
+D.addEventListener('touchmove',e=>{e.preventDefault();S.mouseX=e.touches[0].clientX;S.mouseY=e.touches[0].clientY;});
+
+// ═══════════════════════════════════════════
+// MODE CARDS — 3 modes
+// ═══════════════════════════════════════════
+const mg=document.getElementById('mg');
+const lb=document.createElement('div');lb.className='cat-label';lb.textContent='📷 摄像头';mg.appendChild(lb);
+for(const k of['flashlight','hand']){
+  const m=M[k];const c=document.createElement('div');
+  c.className='mode-card'+(k===S.mode?' active':'');c.dataset.mode=k;
+  c.innerHTML='<span class="icon">'+m.icon+'</span><span class="name">'+m.name+'</span><span class="req">'+m.req+'</span>';
+  c.addEventListener('click',()=>wM(k));
+  mg.appendChild(c);
+}
+// Mouse section
+const mLb=document.createElement('div');mLb.className='cat-label';mLb.textContent='🖥 无需摄像头';mg.appendChild(mLb);
+const mm=M['mouse'];const mc=document.createElement('div');
+mc.className='mode-card';mc.dataset.mode='mouse';
+mc.innerHTML='<span class="icon">'+mm.icon+'</span><span class="name">'+mm.name+'</span><span class="req"></span>';
+mc.addEventListener('click',()=>wM('mouse'));
+mg.appendChild(mc);
+document.getElementById('btn-start').addEventListener('click',start);
+window.addEventListener('resize',()=>{if(!S.running)return;DW=window.innerWidth;DH=window.innerHeight;D.width=DW;D.height=DH;initScene();});
+</script>
+</body>
+</html>

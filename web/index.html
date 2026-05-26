@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>墨卷 · Ink Scroll</title>
+<meta name="description" content="光照之处，墨色生辉 — 浏览器端交互水墨画装置。A browser-based interactive ink-painting installation.">
+<meta property="og:title" content="墨卷 · Ink Scroll">
+<meta property="og:description" content="光照之处，墨色生辉 — 浏览器端交互水墨画装置">
+<meta property="og:type" content="website">
+<meta property="og:image" content="scenes/shanshui.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f5f4ed'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23c96442'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════
@@ -57,9 +63,11 @@ canvas#display{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
   border-radius:var(--r-lg);
   cursor:pointer;text-align:center;
   background:var(--ivory);
+  color:inherit;font:inherit;
   transition:border-color .2s,transform .15s;
 }
 .mode-card:hover{border-color:var(--stone);transform:scale(1.02)}
+.mode-card:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
 .mode-card.active{border-color:var(--clay);background:#fdf5f2}
 .mode-card .icon{font-size:1.2rem;display:block;margin-bottom:3px}
 .mode-card .name{font-size:10px;font-weight:600;color:var(--ink)}
@@ -135,7 +143,7 @@ const S={
   smooth:{x:-1,y:-1},alpha:.3,mirrorX:true,running:false,fps:0,
   mouseX:window.innerWidth/2,mouseY:window.innerHeight/2,
   hlm:null,gesture:'none',hpos:null,lastHx:0,lastHy:0,
-  transition:{active:false,from:null,alpha:0}
+  transition:{active:false,from:null,start:0,duration:500}
 };
 const D=document.getElementById('display'),ctx=D.getContext('2d'),
   pip=document.getElementById('pip'),pipCtx=pip.getContext('2d'),
@@ -160,10 +168,10 @@ const sceneFiles=['shanshui.png','bamboo.png','snow.png','flowers.png','stars.pn
 
 function preloadImages(){
   return Promise.all(sceneFiles.map((f,i)=>{
-    return new Promise((resolve,reject)=>{
+    return new Promise(resolve=>{
       const img=new Image();
       img.onload=()=>{sceneImages[i]=img;resolve();};
-      img.onerror=reject;
+      img.onerror=()=>{console.warn('Scene image failed to load:',f);sceneImages[i]=null;resolve();};
       img.src='scenes/'+f;
     });
   }));
@@ -381,10 +389,16 @@ function dk(d,w,h){
 // DETECTION — Flashlight
 // ═══════════════════════════════════════════
 function spF(id){
-  const dd=id.data,len=dd.length/4,lu=new Float32Array(len);
-  for(let i=0;i<len;i++)lu[i]=dd[i*4]*.299+dd[i*4+1]*.587+dd[i*4+2]*.114;
-  const srt=new Float32Array(lu);srt.sort();
-  const th=srt[Math.min(Math.floor(len*S.threshold/100),len-1)];
+  const dd=id.data,len=dd.length/4,lu=new Uint8Array(len);
+  // O(n) histogram-based percentile (256 bins, integer luminance)
+  const hist=new Uint32Array(256);
+  for(let i=0;i<len;i++){
+    const v=(dd[i*4]*0.299+dd[i*4+1]*0.587+dd[i*4+2]*0.114)|0;
+    lu[i]=v;hist[v]++;
+  }
+  const target=Math.floor(len*S.threshold/100);
+  let cumu=0,th=0;
+  for(let b=0;b<256;b++){cumu+=hist[b];if(cumu>=target){th=b;break;}}
   let sx=0,sy=0,sw=0,cnt=0;
   for(let y=0;y<id.height;y++)for(let x=0;x<id.width;x++){
     const l=lu[y*id.width+x];if(l>th){const wt=l-th;sx+=x*wt;sy+=y*wt;sw+=wt;cnt++;}
@@ -440,14 +454,14 @@ function detectSwipe(cx,cy){
     S.lastHx=cx;S.lastHy=cy;
   }
 }
-async function pH(){if(!hr||!wkCvs)return;try{hands.send({image:wkCvs});}catch(e){}}
+async function pH(){if(!hr||!wkCvs)return;try{await hands.send({image:wkCvs});}catch(e){console.warn('MediaPipe Hands send failed:',e.message);}}
 
 // ═══════════════════════════════════════════
 // 2 INTERACTION MODES
 // ═══════════════════════════════════════════
 const M={
   flashlight:{icon:'🔦',name:'手电筒',init(){},spot(id){return spF(id);},cln(){},ex:()=>'',needCam:true,req:'📷'},
-  hand:{icon:'✋',name:'手势识别',init(){iH();},spot(id){if(S.hpos&&S.gesture!=='fist')return{x:S.hpos.x,y:S.hpos.y,radius:S.gesture==='point'?25:S.radius};return null;},cln(){},ex:()=>`🖐 ${({open:'张开',fist:'握拳',point:'聚光'})[S.gesture]||'-'}`,needCam:true,req:'📷'},
+  hand:{icon:'✋',name:'手势识别',init(){iH();},spot(id){if(S.hpos&&S.gesture!=='fist')return{x:S.hpos.x,y:S.hpos.y,radius:S.gesture==='point'?25:S.radius};return null;},cln(){if(hands){try{hands.close();}catch(e){console.warn('hands.close failed:',e.message);}hands=null;hr=false;}S.hlm=null;S.hpos=null;S.gesture='none';},ex:()=>`🖐 ${({open:'张开',fist:'握拳',point:'聚光'})[S.gesture]||'-'}`,needCam:true,req:'📷'},
   mouse:{icon:'🖱',name:'鼠标跟随',init(){},spot(id){return{x:S.mouseX,y:S.mouseY,radius:S.radius};},cln(){},ex:()=>'',needCam:false,req:''},
 };
 
@@ -461,7 +475,7 @@ function changeScene(n){
   oldImg.getContext('2d').drawImage(scCvs,0,0);
   S.scene=n;
   drawScene(performance.now()/1000);target=scCvs;genHidden();
-  S.transition={active:true,from:oldImg,alpha:1};
+  S.transition={active:true,from:oldImg,start:performance.now(),duration:500};
   // Update UI
   document.querySelectorAll('.scene-dot').forEach((d,i)=>d.classList.toggle('active',i===n));
   document.getElementById('hsc').textContent=sceneNames[n];
@@ -472,8 +486,8 @@ function changeScene(n){
 // MAIN RENDER LOOP
 // ═══════════════════════════════════════════
 function processFrame(){
-  try{
   if(!S.running||!target)return;
+  try{
   const m=M[S.mode];
   // Camera frame (skip if cam unavailable)
   if(vid&&vid.readyState>=2){
@@ -516,11 +530,12 @@ function processFrame(){
     ctx.beginPath();ctx.arc(spot.x,spot.y,r,0,Math.PI*2);ctx.stroke();
   }
 
-  // Scene transition crossfade (clean, no particles)
+  // Scene transition crossfade (time-based, ~500ms regardless of fps)
   if(S.transition.active){
-    S.transition.alpha-=.03;
-    if(S.transition.alpha<=0){S.transition.active=false;S.transition.from=null;}
-    else{ctx.save();ctx.globalAlpha=S.transition.alpha;ctx.drawImage(S.transition.from,0,0);ctx.globalAlpha=1;ctx.restore();}
+    const elapsed=performance.now()-S.transition.start;
+    const a=1-elapsed/S.transition.duration;
+    if(a<=0){S.transition.active=false;S.transition.from=null;}
+    else{ctx.save();ctx.globalAlpha=a;ctx.drawImage(S.transition.from,0,0);ctx.globalAlpha=1;ctx.restore();}
   }
 
   // PIP
@@ -542,11 +557,10 @@ function processFrame(){
   document.getElementById('hr').textContent=S.radius+' @'+S.camSens+'x';
   document.getElementById('he').textContent=m.ex()||'';
 
-  requestAnimationFrame(processFrame);
-
   // Async MediaPipe hand dispatch
   if(S.mode==='hand'&&fc%10===0)setTimeout(pH,0);
   }catch(e){console.error('Frame error:',e.message);}
+  requestAnimationFrame(processFrame);
 }
 
 // ═══════════════════════════════════════════
@@ -596,8 +610,11 @@ function wM(name){
     M[S.mode].cln();S.mode=name;S.smooth.x=S.smooth.y=-1;
     M[name].init();
   }else{S.mode=name;}
-  document.querySelectorAll('.mode-card').forEach(c=>c.classList.remove('active'));
-  document.querySelector(`[data-mode="${name}"]`)?.classList.add('active');
+  document.querySelectorAll('.mode-card').forEach(c=>{
+    const on=c.dataset.mode===name;
+    c.classList.toggle('active',on);
+    c.setAttribute('aria-pressed',on?'true':'false');
+  });
 }
 
 // ═══════════════════════════════════════════
@@ -624,29 +641,40 @@ document.addEventListener('keydown',e=>{
 });
 // Mouse/trackpad tracking — spotlight follows cursor
 D.addEventListener('mousemove',e=>{S.mouseX=e.clientX;S.mouseY=e.clientY;});
-D.addEventListener('touchmove',e=>{e.preventDefault();S.mouseX=e.touches[0].clientX;S.mouseY=e.touches[0].clientY;});
+D.addEventListener('touchmove',e=>{e.preventDefault();S.mouseX=e.touches[0].clientX;S.mouseY=e.touches[0].clientY;},{passive:false});
+// Wheel adjusts spotlight radius (matches README docs)
+D.addEventListener('wheel',e=>{
+  if(!S.running)return;
+  e.preventDefault();
+  const step=e.deltaY>0?-8:8;
+  S.radius=Math.max(15,Math.min(350,S.radius+step));
+},{passive:false});
 
 // ═══════════════════════════════════════════
 // MODE CARDS — 3 modes
 // ═══════════════════════════════════════════
 const mg=document.getElementById('mg');
-const lb=document.createElement('div');lb.className='cat-label';lb.textContent='📷 摄像头';mg.appendChild(lb);
-for(const k of['flashlight','hand']){
-  const m=M[k];const c=document.createElement('div');
-  c.className='mode-card'+(k===S.mode?' active':'');c.dataset.mode=k;
-  c.innerHTML='<span class="icon">'+m.icon+'</span><span class="name">'+m.name+'</span><span class="req">'+m.req+'</span>';
+function makeCard(k){
+  const m=M[k];const c=document.createElement('button');
+  c.type='button';
+  c.className='mode-card'+(k===S.mode?' active':'');
+  c.dataset.mode=k;
+  c.setAttribute('aria-pressed',k===S.mode?'true':'false');
+  c.setAttribute('aria-label',m.name);
+  c.innerHTML='<span class="icon">'+m.icon+'</span><span class="name">'+m.name+'</span><span class="req">'+(m.req||'')+'</span>';
   c.addEventListener('click',()=>wM(k));
-  mg.appendChild(c);
+  return c;
 }
-// Mouse section
+const lb=document.createElement('div');lb.className='cat-label';lb.textContent='📷 摄像头';mg.appendChild(lb);
+for(const k of['flashlight','hand'])mg.appendChild(makeCard(k));
 const mLb=document.createElement('div');mLb.className='cat-label';mLb.textContent='🖥 无需摄像头';mg.appendChild(mLb);
-const mm=M['mouse'];const mc=document.createElement('div');
-mc.className='mode-card';mc.dataset.mode='mouse';
-mc.innerHTML='<span class="icon">'+mm.icon+'</span><span class="name">'+mm.name+'</span><span class="req"></span>';
-mc.addEventListener('click',()=>wM('mouse'));
-mg.appendChild(mc);
+mg.appendChild(makeCard('mouse'));
 document.getElementById('btn-start').addEventListener('click',start);
-window.addEventListener('resize',()=>{if(!S.running)return;DW=window.innerWidth;DH=window.innerHeight;D.width=DW;D.height=DH;initScene();});
+window.addEventListener('resize',()=>{
+  if(!S.running)return;
+  DW=window.innerWidth;DH=window.innerHeight;D.width=DW;D.height=DH;
+  initScene();drawScene(performance.now()/1000);target=scCvs;genHidden();
+});
 </script>
 </body>
 </html>

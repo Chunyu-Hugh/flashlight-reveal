@@ -74,7 +74,8 @@ tailscale serve --bg 8888
 | ← → | 切换场景 | Switch scene |
 | 1 / 2 / 3 | 风格：墨线 / 素描 / 暗调 | Style |
 | `[` `]` | 灵敏度 - / + | Sensitivity |
-| + / - | 光圈大小 | Spot radius |
+| + / - 或滚轮 | 光圈大小 | Spot radius (or wheel) |
+| R | 重置平滑 | Reset smoothing |
 | X | 镜像翻转 | Mirror |
 | F | 全屏 | Fullscreen |
 | Q / Esc | 退出 | Quit |
@@ -112,6 +113,6 @@ web/
 
 MIT — 随便改、随便商用 · Do whatever you want, commercial use OK.
 
-有问题联系 · Questions: [Hugh](https://github.com/hugh-chunyu)
+有问题联系 · Questions: [Hugh](https://github.com/Chunyu-Hugh)
 
 详见 [LICENSE](LICENSE) · See [LICENSE](LICENSE)

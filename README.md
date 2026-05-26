@@ -1,5 +1,10 @@
 # 墨卷 · Ink Scroll
 
+[![Status](https://img.shields.io/badge/status-alpha-c96442?labelColor=141413)](#-路线图--roadmap)
+[![License: MIT](https://img.shields.io/badge/license-MIT-5e5d59?labelColor=141413)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-6b8e6e?labelColor=141413)](CONTRIBUTING.md)
+[![Discussions](https://img.shields.io/badge/💬-Discussions-7b8fa8?labelColor=141413)](../../discussions)
+
 > 光照之处，墨色生辉 · Where light falls, ink comes alive
 
 浏览器端交互水墨画装置。纯 HTML/CSS/JS，零依赖构建，单文件即可运行。
@@ -11,6 +16,10 @@ A browser-based interactive ink painting installation. Pure HTML/CSS/JS — sing
 用摄像头手电筒或手势控制光圈，揭示隐藏在中国风水墨画下的彩色动画世界。墨线静止，光圈内万物生动。
 
 Control a spotlight with your webcam flashlight or hand gestures to reveal a living, animated world hidden beneath traditional Chinese ink paintings.
+
+> 🚧 **项目状态 · Status:** Alpha — 骨架已搭好，正在向"标准社区项目"打磨。**欢迎一起来玩**：开 [issue](../../issues/new/choose) 提想法、去 [Discussions](../../discussions) 闲聊、看 [Roadmap](#-路线图--roadmap) 找你想做的方向。
+>
+> Skeleton's in place, polishing toward a "standard community project." **Come play** — open an [issue](../../issues/new/choose), chat in [Discussions](../../discussions), pick a direction from the [Roadmap](#-路线图--roadmap).
 
 ## ✨ 特性 · Features
 
@@ -158,11 +167,97 @@ Below is the full survey of interaction modalities considered for this spotlight
 
 ### ⭐ 最贴合本项目气质的 5 个方向 · Best matches for this piece
 
-1. **IR webcam + IR LED 手电** — 兑现原始 Wiimote 愿景的"最低改动版"，代码零修改 · least-effort delivery of the IR-flashlight vision, no code change
-2. **Wacom 笔压 = 半径** — 水墨主题 + 笔压自然闭环 · ink-painting meets ink pen
-3. **呼吸 = 半径 + MediaPipe Pose 手腕 = 位置** — 全沉浸双模态 · immersive dual-modal, hands-free
-4. **手机当魔杖（WebRTC 配对）** — 多观众画廊最实用 · best for multi-visitor gallery
-5. **OSC from TouchDesigner** — 装置艺术圈标准做法，策展人可控场 · industry-standard install pattern
+每个方向下面都列了需要的技术栈，方便想动手的同学心里有数。"难点"是实现时最容易卡的那一步。
+
+For each direction below, the tech stack lists what you'd actually need to learn, and "tricky" calls out where the friction usually lives.
+
+#### ① IR webcam + IR LED 手电 · IR-modified webcam + IR LED wand
+
+兑现 Johnny Lee 原始愿景的最短路径。**代码零修改**——把环境可见光过滤掉之后，现有的亮点检测立刻变成 IR 追踪。
+The shortest path to Johnny-Lee's original vision. **Zero code change** — filter out visible light and the existing brightness-peak detector becomes an IR tracker.
+
+- **技术栈 · Stack:** 现有 `getUserMedia` + `spF()` 直接复用 · existing pipeline, no new code
+- **硬件 · Hardware:** 一个旧 webcam（拆 IR-cut filter）+ 一片冲洗过的胶片当 IR-pass + 一个 IR LED 手电（亚马逊 ~$10）
+- **难点 · Tricky:** 拆机不可逆；要找合适厚度的 IR-pass 滤片
+- **状态 · Status:** 寻找愿意拆 webcam 的人 · Looking for someone willing to mod a webcam
+
+#### ② Wacom 笔压 = 半径 · Wacom pen pressure → spotlight radius
+
+水墨画 + 笔压，主题与机制天然闭环。**纯前端，无新依赖**——HTML5 Pointer Events 直接给你笔压值。
+Ink-painting meets ink-pen — theme and mechanism close the loop. **Pure browser, no new deps** — HTML5 Pointer Events delivers pressure natively.
+
+- **技术栈 · Stack:** `pointermove` 事件 + `e.pressure` (0–1)
+- **硬件 · Hardware:** 任何 Wacom / XP-Pen / Huion / iPad+Apple Pencil
+- **难点 · Tricky:** iPad Safari 的 PointerEvent.pressure 历史上不稳定，需要测试
+- **状态 · Status:** 准备动手的人来 PR · PRs welcome
+
+#### ③ 呼吸 + 全身姿态 · Breath + full-body pose
+
+吸气放大、呼气收缩；手腕坐标驱动光圈位置。**全沉浸双模态、手不离身、纯浏览器。**
+Inhale grows, exhale shrinks; wrist drives position. **Immersive dual-modal, hands-free, pure browser.**
+
+- **技术栈 · Stack:**
+  - 呼吸 · Breath: Web Audio `AudioContext` + `BiquadFilterNode`（0.1–0.5 Hz 带通）+ `AnalyserNode` RMS 包络
+  - 姿态 · Pose: `@mediapipe/tasks-vision` 的 `PoseLandmarker`（CDN），复用现有 `wkCvs` 摄像头帧
+- **硬件 · Hardware:** 笔记本麦克风 + 摄像头（已有）
+- **难点 · Tricky:** 画廊噪音环境下呼吸信噪比；MediaPipe Pose 比 Hands 重一些 (~30fps on M1)
+- **状态 · Status:** 我自己想做的下一个 · On my own short list
+
+#### ④ 手机当魔杖 · Phone as a wand (WebRTC + QR pair)
+
+观众扫码把自己的手机变成魔杖，挥动手机控制光圈。**画廊场景最实用**——观众自带硬件。
+Visitor scans a QR code; their phone becomes a wand. **Best for galleries** — everyone brings their own hardware.
+
+- **技术栈 · Stack:**
+  - 大屏 · Big screen: 现有页面 + WebRTC `RTCDataChannel`
+  - 手机端 · Phone: 同源 mobile-friendly 子页面，读 `deviceorientation` (`alpha/beta/gamma`)
+  - 配对 · Pairing: PeerJS 公共 broker (省去自建信令) + `qrcode-generator` 生成二维码
+- **硬件 · Hardware:** 观众的手机 + 大屏端的电脑
+- **难点 · Tricky:** iOS 14+ 要 `DeviceOrientationEvent.requestPermission()`，必须由用户手势触发；首次连接的 ICE 协商时机
+- **状态 · Status:** 寻找熟悉 WebRTC 的同学一起做 · Looking for a WebRTC-savvy collaborator
+
+#### ⑤ OSC from TouchDesigner · OSC 控场
+
+让策展人/运营在不动代码的情况下，用 TouchDesigner 的 patch 实时调光圈位置、半径、场景切换。**装置艺术圈标准做法。**
+Lets a curator drive position/radius/scene live from a TouchDesigner patch — without touching code. **Industry-standard installation pattern.**
+
+- **技术栈 · Stack:**
+  - 浏览器端 · Browser: WebSocket client + `osc-js` 解码 OSC bundle
+  - TD 端 · TD side: WebSocket DAT 节点，发送 `/spot/x`、`/spot/y`、`/spot/r`、`/scene/next` 等地址
+  - 可选 · Optional: 同一接口也能接 Max/MSP / SuperCollider / Pure Data
+- **硬件 · Hardware:** 装 TouchDesigner 的电脑（免费个人版即可）
+- **难点 · Tricky:** OSC 是无连接的，丢包要自己处理；建议加平滑
+- **状态 · Status:** 我会画一个最小 TD patch 当 demo · Will ship a minimal demo patch
+
+---
+
+## 🤝 加入 · Get involved
+
+骨架已经写好（一个 660 行的 `web/index.html`、5 张场景、3 种交互模式跑起来了），但**真正有意思的部分需要更多人一起玩**——上面那张 Roadmap 表里任何一行，只要有人想做，我都可以陪着 review。
+
+The skeleton's in place — 660-line `web/index.html`, 5 scenes, 3 working modes — but **the interesting stuff needs more people in the loop**. Any row of the Roadmap above: if someone wants to take it on, I'll review and pair through it.
+
+### 不写代码也能贡献 · You don't need to code
+
+| 我能 · I can | 怎么做 · How |
+|---|---|
+| 提一个新交互方式 | 开 [New Interaction Modality issue](../../issues/new?template=new_modality.md) |
+| 报 bug | 开 [Bug report](../../issues/new?template=bug_report.md) |
+| 提小改进 | 开 [Feature request](../../issues/new?template=feature_request.md) |
+| 闲聊、问问题、晒成品 | [Discussions](../../discussions) |
+| 贡献水墨场景图 | 见 [CONTRIBUTING.md → 场景图](CONTRIBUTING.md#-场景图--scene-images) |
+| 翻译到其他语言 | 开 issue 提议 |
+
+### 写代码贡献 · If you want to code
+
+Fork → PR。详细约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。**核心规则只有一条**：保持"单文件、零构建、零框架"。新增 CDN 单文件库 OK，新增 webpack 不 OK。
+
+Fork → PR. See [CONTRIBUTING.md](CONTRIBUTING.md) for details. **One core rule:** preserve "single file, zero build, zero framework." New CDN single-file libs are fine; new bundlers are not.
+
+行为准则 · Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+安全问题 · Security: [SECURITY.md](SECURITY.md)
+
+不吝赐教 · Don't hold back your insights.
 
 ## 📄 License
 

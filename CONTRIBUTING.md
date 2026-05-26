@@ -2,7 +2,7 @@
 
 欢迎！墨卷是一个**艺术装置 + 开放实验场**——单文件 HTML、零依赖、欢迎一切让"光圈揭示水墨"这个核心变得更有趣的想法。
 
-Welcome. `flashlight-reveal` is an **art installation + open experiment** — a single-file HTML app with zero dependencies. All ideas that make the "spotlight reveals ink" core more compelling are welcome.
+Welcome. `ink_scroll` is an **art installation + open experiment** — a single-file HTML app with zero dependencies. All ideas that make the "spotlight reveals ink" core more compelling are welcome.
 
 ---
 
@@ -28,8 +28,8 @@ Welcome. `flashlight-reveal` is an **art installation + open experiment** — a 
 零依赖，零构建。Zero deps, zero build.
 
 ```bash
-git clone git@github.com:Chunyu-Hugh/flashlight-reveal.git
-cd flashlight-reveal/web
+git clone git@github.com:Chunyu-Hugh/ink_scroll.git
+cd ink_scroll/web
 python3 -m http.server 8888
 # 打开 · open http://localhost:8888
 ```

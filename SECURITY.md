@@ -2,9 +2,9 @@
 
 ## 项目性质 · Project nature
 
-`flashlight-reveal` 是纯前端、零后端的浏览器装置艺术作品。没有服务器、没有用户账户、没有数据收集。**所有摄像头/麦克风数据只在浏览器本地处理，从不离开你的设备。**
+`ink_scroll` 是纯前端、零后端的浏览器装置艺术作品。没有服务器、没有用户账户、没有数据收集。**所有摄像头/麦克风数据只在浏览器本地处理，从不离开你的设备。**
 
-`flashlight-reveal` is a pure frontend, zero-backend browser art piece. No server, no user accounts, no data collection. **All camera/microphone data is processed locally in the browser and never leaves your device.**
+`ink_scroll` is a pure frontend, zero-backend browser art piece. No server, no user accounts, no data collection. **All camera/microphone data is processed locally in the browser and never leaves your device.**
 
 ## 第三方依赖 · Third-party dependencies
 

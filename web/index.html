@@ -580,7 +580,7 @@ html[lang^="zh"] #first-hint{letter-spacing:.22em}
 <canvas id="pip"></canvas>
 
 <!-- ──────── First-time hint ──────── -->
-<div id="first-hint" data-i18n="firstHint">↑ 移动以揭示画卷</div>
+<div id="first-hint">↑ 移动以揭示画卷</div>
 
 <!-- ──────── Gesture HUD ──────── -->
 <div id="gh"></div>
@@ -639,7 +639,9 @@ const I18N = {
     errBody:'你可以使用鼠标模式继续体验画卷，无需任何额外设置。',
     errMouse:'切换到鼠标模式',
     errRetry:'重试',
-    firstHint:'移动鼠标 · 揭示画卷',
+    firstHintMouse:'移动鼠标 · 揭示画卷',
+    firstHintFlash:'用手电对准摄像头 · 揭示画卷',
+    firstHintHand:'张开手掌移动 · 揭示画卷',
     credit:'墨卷 · 开放的水墨实验',
     hintHTML:'<kbd>M</kbd> 切换模式<span class="sep">·</span><kbd>← →</kbd> 切换场景<span class="sep">·</span><kbd>1 2 3</kbd> 风格<br><kbd>滚轮</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 灵敏度<span class="sep">·</span><kbd>X</kbd> 镜像<span class="sep">·</span><kbd>F</kbd> 全屏<span class="sep">·</span><kbd>Q</kbd> 退出',
   },
@@ -673,7 +675,9 @@ const I18N = {
     errBody:'您可以使用滑鼠模式繼續體驗畫卷，無需任何額外設定。',
     errMouse:'切換到滑鼠模式',
     errRetry:'重試',
-    firstHint:'移動滑鼠 · 揭示畫卷',
+    firstHintMouse:'移動滑鼠 · 揭示畫卷',
+    firstHintFlash:'用手電對準攝像頭 · 揭示畫卷',
+    firstHintHand:'張開手掌移動 · 揭示畫卷',
     credit:'墨卷 · 開放的水墨實驗',
     hintHTML:'<kbd>M</kbd> 切換模式<span class="sep">·</span><kbd>← →</kbd> 切換場景<span class="sep">·</span><kbd>1 2 3</kbd> 風格<br><kbd>滾輪</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 靈敏度<span class="sep">·</span><kbd>X</kbd> 鏡像<span class="sep">·</span><kbd>F</kbd> 全螢幕<span class="sep">·</span><kbd>Q</kbd> 退出',
   },
@@ -707,7 +711,9 @@ const I18N = {
     errBody:"That's fine — you can still explore the scroll with your mouse or trackpad.",
     errMouse:'Continue with mouse',
     errRetry:'Try again',
-    firstHint:'Move the cursor to reveal',
+    firstHintMouse:'Move the cursor to reveal',
+    firstHintFlash:'Aim a flashlight at the camera to reveal',
+    firstHintHand:'Open your palm and move to reveal',
     credit:'An open ink-painting experiment',
     hintHTML:'<kbd>M</kbd> mode<span class="sep">·</span><kbd>← →</kbd> scene<span class="sep">·</span><kbd>1 2 3</kbd> style<br><kbd>wheel</kbd> radius<span class="sep">·</span><kbd>[ ]</kbd> sensitivity<span class="sep">·</span><kbd>X</kbd> mirror<span class="sep">·</span><kbd>F</kbd> fullscreen<span class="sep">·</span><kbd>Q</kbd> quit',
   },
@@ -746,6 +752,11 @@ function applyTranslations(){
   if (typeof S !== 'undefined' && S.running){
     const hsc = document.getElementById('hsc');
     if (hsc) hsc.textContent = sceneNameOf(S.scene);
+  }
+  // Refresh first-hint text if currently visible
+  const fh = document.getElementById('first-hint');
+  if (fh && fh.classList.contains('show') && typeof firstHintText === 'function'){
+    fh.textContent = firstHintText();
   }
 }
 function setLang(l){
@@ -1182,12 +1193,21 @@ async function initCam(){
 }
 
 /* ───────────────────────────────────────────────────────────
-   First-time hint
+   First-time hint — per-mode wording
    ─────────────────────────────────────────────────────────── */
+const FIRST_HINT_KEYS = {
+  flashlight: 'firstHintFlash',
+  hand: 'firstHintHand',
+  mouse: 'firstHintMouse',
+};
+function firstHintText(){
+  return t(FIRST_HINT_KEYS[S.mode] || 'firstHintMouse');
+}
 function showFirstHint(){
   if(S.firstHintShown) return;
   S.firstHintShown=true;
   const el=document.getElementById('first-hint');
+  el.textContent = firstHintText();
   setTimeout(()=>el.classList.add('show'), 900);
   setTimeout(()=>el.classList.remove('show'), 6000);
 }
@@ -1247,6 +1267,13 @@ function wM(name){
   if(S.running){
     M[S.mode].cln();S.mode=name;S.smooth.x=S.smooth.y=-1;
     M[name].init();
+    // Flash a per-mode hint so the user knows how to interact in the new mode
+    const fh = document.getElementById('first-hint');
+    fh.textContent = firstHintText();
+    fh.classList.add('show');
+    clearTimeout(wM._hintT);
+    wM._hintT = setTimeout(()=>fh.classList.remove('show'), 2800);
+    S.firstMoveDistance = 0;
     pip.style.display = M[name].needCam ? 'block' : 'none';
   }else{S.mode=name;}
   document.querySelectorAll('.mode-card').forEach(c=>{

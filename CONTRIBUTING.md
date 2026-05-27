@@ -1,16 +1,16 @@
-# 贡献指南 · Contributing
+# 贡献指南
+
+**简体中文** · [繁體中文](CONTRIBUTING.zh-TW.md) · [English](CONTRIBUTING.en.md)
 
 欢迎！墨卷是一个**艺术装置 + 开放实验场**——单文件 HTML、零依赖、欢迎一切让"光圈揭示水墨"这个核心变得更有趣的想法。
 
-Welcome. `ink_scroll` is an **art installation + open experiment** — a single-file HTML app with zero dependencies. All ideas that make the "spotlight reveals ink" core more compelling are welcome.
-
 ---
 
-## 🌱 怎么参与 · Ways to contribute
+## 🌱 怎么参与
 
-不需要写代码也能贡献。No coding required to contribute.
+不需要写代码也能贡献。
 
-| 我能做什么 · I can | 怎么做 · How |
+| 我能做什么 | 怎么做 |
 |---|---|
 | 提一个新的交互方式 | 开 [New Interaction Modality issue](../../issues/new?template=new_modality.md) |
 | 报告 bug | 开 [Bug report](../../issues/new?template=bug_report.md) |
@@ -23,41 +23,38 @@ Welcome. `ink_scroll` is an **art installation + open experiment** — a single-
 
 ---
 
-## 🛠 本地开发 · Local development
+## 🛠 本地开发
 
-零依赖，零构建。Zero deps, zero build.
+零依赖，零构建。
 
 ```bash
 git clone git@github.com:Chunyu-Hugh/ink_scroll.git
 cd ink_scroll/web
 python3 -m http.server 8888
-# 打开 · open http://localhost:8888
+# 打开 http://localhost:8888
 ```
 
 摄像头功能需要 HTTPS（localhost 例外）。开发用 Tailscale `tailscale serve --bg 8888` 最快。
 
-Camera APIs require HTTPS (localhost exempt). For dev, Tailscale `tailscale serve --bg 8888` is the fastest.
-
 ---
 
-## 📝 代码风格 · Code style
+## 📝 代码风格
 
-整个项目就一个 `web/index.html`（~660 行）。**保持这个约束**——单文件、零依赖是产品的一部分，不是技术债。
+整个项目就一个 `web/index.html`（~1370 行）。**保持这个约束**——单文件、零依赖是产品的一部分，不是技术债。
 
-The whole project lives in one `web/index.html` (~660 lines). **Keep it that way** — single-file, zero-deps is part of the product, not tech debt.
+具体约定：
 
-具体约定 · Specifics:
-
-- **不引入构建工具**（webpack/vite/parcel 全部 no）· No build tools
-- **不引入框架**（React/Vue/Svelte 全部 no）· No frameworks
-- **可以引入 CDN 单文件库**（如 MediaPipe），但要明确写为何需要 · CDN single-file libs OK if justified
-- **风格延续现有代码**：超紧凑、单字母变量在内部 OK、注释少而精 · Match existing style: terse, short names internally, comments rare and meaningful
-- **新交互方式**：在 `M` 对象（mode dispatch table）里加一个新 entry，遵循 `{icon, name, init, spot, cln, ex, needCam, req}` 接口
+- **不引入构建工具**（webpack/vite/parcel 全部 no）
+- **不引入框架**（React/Vue/Svelte 全部 no）
+- **可以引入 CDN 单文件库**（如 MediaPipe、osc-js），但要明确写为何需要
+- **风格延续现有代码**：超紧凑、单字母变量在内部 OK、注释少而精
+- **新交互方式**：在 `M` 对象（mode dispatch table）里加一个新 entry，遵循 `{icon, nameKey, init, spot, cln, ex, needCam}` 接口
 - **新场景图**：512×512+ PNG，水墨风格，放到 `web/scenes/`，在 `sceneFiles` 数组注册
+- **i18n**：新加的所有面向用户的字符串要进 `I18N` 字典三个语言都填一份。HUD 字段每帧刷新所以模式名/场景名/风格名能自动跟随语言切换
 
 ---
 
-## 🎨 场景图 · Scene images
+## 🎨 场景图
 
 新场景图欢迎！要求：
 
@@ -66,11 +63,9 @@ The whole project lives in one `web/index.html` (~660 lines). **Keep it that way
 - 单色或低饱和度——边缘检测 (Sobel) 对高对比单色效果最好
 - 你拥有版权 或 来源是 CC0/CC-BY，在 PR 里注明来源
 
-Scene image PRs welcome with: Chinese ink-painting style matching existing scenes; ≥512×512 PNG, <1MB; monochrome or low-saturation (Sobel edge detection works best on high-contrast monochrome); you own copyright or source is CC0/CC-BY (cite it in the PR).
-
 ---
 
-## 🔀 PR 流程 · PR workflow
+## 🔀 PR 流程
 
 1. Fork & 创建分支：`git checkout -b modality/wacom-pressure`
 2. 改动尽量小、可解释。一个 PR 一件事。
@@ -78,22 +73,16 @@ Scene image PRs welcome with: Chinese ink-painting style matching existing scene
 4. PR 描述里**贴一张 GIF/截图**展示效果
 5. 我（@Chunyu-Hugh）会尽快 review
 
-Fork & branch → small focused change → test in browser → **attach a GIF/screenshot** in PR → maintainer review.
-
 ---
 
-## 💬 行为准则 · Code of Conduct
+## 💬 行为准则
 
 参见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。简而言之：**对作品认真，对人友善**。
 
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). TL;DR: **be rigorous about the work, kind to people**.
-
 ---
 
-## 🙏 致谢 · Acknowledgments
+## 🙏 致谢
 
 每个被合并的贡献者会被加到 README 致谢区。第一次贡献者特别欢迎——告诉我哪里阻塞你了，我帮你过坎。
 
-Every merged contributor is credited in the README. First-time contributors especially welcome — tell me where you got stuck and I'll help you through.
-
-不吝赐教 · Don't hold back your insights.
+不吝赐教。

@@ -2,148 +2,769 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>墨卷 · Ink Scroll</title>
 <meta name="description" content="光照之处，墨色生辉 — 浏览器端交互水墨画装置。A browser-based interactive ink-painting installation.">
 <meta property="og:title" content="墨卷 · Ink Scroll">
 <meta property="og:description" content="光照之处，墨色生辉 — 浏览器端交互水墨画装置">
 <meta property="og:type" content="website">
 <meta property="og:image" content="scenes/shanshui.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f5f4ed'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23c96442'/%3E%3C/svg%3E">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f5f4ed'/%3E%3Crect x='10' y='10' width='12' height='12' fill='%23c96442'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Serif+TC:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
-/* ═══════════════════════════════════════════════
-   墨卷 DESIGN SYSTEM
-   Parchment · Terracotta · Serif · Whisper borders
-   ═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   墨卷 · INK SCROLL
+   Design system — refined editorial, scholar's study tone
+   Parchment ground, terracotta seal, serif throughout
+   ═══════════════════════════════════════════════════════════ */
 :root{
-  --ink:#141413;--stone:#5e5d59;--clay:#c96442;--parchment:#f5f4ed;
-  --ivory:#faf9f5;--cream-border:#f0eee6;--charcoal:#30302e;--warm-silver:#b0aea5;
-  --r-sm:4px;--r-md:8px;--r-lg:12px;--r-xl:16px;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden;background:var(--parchment);font-family:system-ui,-apple-system,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
-canvas#display{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
-#pip{position:fixed;bottom:10px;right:10px;width:160px;border:1px solid var(--cream-border);border-radius:var(--r-md);z-index:10;display:none}
-/* ── UI Overlay ── */
-#ui{
-  position:fixed;top:12px;left:12px;z-index:20;
-  background:rgba(20,20,19,.42);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  color:var(--warm-silver);font-size:10px;line-height:1.7;
-  padding:8px 12px;border-radius:var(--r-md);
-  border:1px solid rgba(255,255,255,.06);
-  letter-spacing:.02em;
-}
-#ui b{color:var(--clay);font-weight:600}
-#ui .divider{color:rgba(255,255,255,.12);margin:0 4px}
+  /* Brand palette (from DESIGN.md) */
+  --ink:#141413;
+  --ink-soft:#1a1a18;
+  --stone:#5e5d59;
+  --stone-soft:#7a7975;
+  --warm-silver:#b0aea5;
+  --clay:#c96442;
+  --clay-deep:#b8583a;
+  --clay-soft:#d97757;
+  --jade:#6b8e6e;
+  --slate:#7b8fa8;
+  --parchment:#f5f4ed;
+  --parchment-warm:#efece1;
+  --ivory:#faf9f5;
+  --cream-border:#e8e6dc;
+  --cream-line:#dcd9cc;
+  --charcoal:#30302e;
 
-/* ── Start Screen ── */
+  /* Type stacks — serif throughout */
+  --serif-sc:'Noto Serif SC',serif;
+  --serif-tc:'Noto Serif TC',serif;
+  --serif-en:'EB Garamond','Noto Serif SC',serif;
+  --serif:var(--serif-sc),var(--serif-tc),var(--serif-en);
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+
+  /* Curves */
+  --easing-in-out:cubic-bezier(.4,0,.2,1);
+  --easing-out:cubic-bezier(0,0,.2,1);
+  --easing-scroll:cubic-bezier(.16,1,.3,1);
+
+  /* Radii */
+  --r-sm:4px;--r-md:8px;--r-lg:12px;--r-xl:18px;
+}
+html[lang^="zh-TW"]{--serif:var(--serif-tc),var(--serif-sc),var(--serif-en);}
+html[lang^="en"]   {--serif:var(--serif-en),var(--serif-sc);}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  height:100%;overflow:hidden;
+  background:var(--parchment);
+  color:var(--ink);
+  font-family:var(--serif);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+::selection{background:rgba(201,100,66,.18);color:var(--ink)}
+
+/* ──────────────────────────────────────────────────────────
+   PAPER TEXTURE  (subtle grain, applied to parchment surfaces)
+   ────────────────────────────────────────────────────────── */
+.paper{
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,253,247,.5), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(217,213,196,.18), transparent 55%),
+    var(--parchment);
+  position:relative;
+}
+.paper::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 .08  0 0 0 0 .08  0 0 0 0 .07  0 0 0 .035 0'/></filter><rect width='240' height='240' filter='url(%23n)' opacity='.7'/></svg>");
+  mix-blend-mode:multiply;opacity:.5;
+}
+
+/* ──────────────────────────────────────────────────────────
+   CANVAS LAYERS
+   ────────────────────────────────────────────────────────── */
+canvas#display{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
+#pip{
+  position:fixed;bottom:14px;right:14px;width:140px;
+  border:1px solid rgba(245,244,237,.18);border-radius:var(--r-md);
+  box-shadow:0 8px 24px rgba(0,0,0,.32);
+  z-index:10;display:none;opacity:.92;
+}
+
+/* ──────────────────────────────────────────────────────────
+   LOADING SCREEN
+   ────────────────────────────────────────────────────────── */
+#loading{
+  position:fixed;inset:0;z-index:200;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:36px;
+  transition:opacity .6s var(--easing-out);
+}
+#loading.gone{opacity:0;pointer-events:none}
+#loading .mark{
+  font-family:var(--serif);font-weight:700;font-size:2.4rem;
+  letter-spacing:.04em;color:var(--ink);
+}
+#loading .bar{
+  width:200px;height:1px;background:var(--cream-line);overflow:hidden;
+  position:relative;
+}
+#loading .bar::after{
+  content:"";position:absolute;inset:0;background:var(--ink);
+  transform:translateX(-100%);
+  animation:load 1.6s var(--easing-in-out) infinite;
+}
+#loading .word{
+  font-family:var(--serif);font-size:.7rem;color:var(--stone);
+  letter-spacing:.32em;text-transform:uppercase;
+}
+html[lang^="zh"] #loading .word{letter-spacing:.4em;text-transform:none;font-size:.78rem;}
+@keyframes load{
+  0%  {transform:translateX(-100%)}
+  50% {transform:translateX(0)}
+  100%{transform:translateX(100%)}
+}
+
+/* ──────────────────────────────────────────────────────────
+   START SCREEN — Editorial title page
+   ────────────────────────────────────────────────────────── */
 #start-screen{
   position:fixed;inset:0;z-index:100;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:var(--parchment);color:var(--ink);
-  gap:0;overflow-y:auto;padding:40px 20px;
+  color:var(--ink);
+  padding:48px 24px;overflow-y:auto;
+  opacity:0;
+  transition:opacity .55s var(--easing-out),transform .55s var(--easing-out);
 }
-#start-screen .brand{
-  font-family:'Noto Serif SC',serif;
-  font-size:3rem;font-weight:700;line-height:1.15;letter-spacing:-.02em;
+#start-screen.ready{opacity:1}
+#start-screen.leaving{opacity:0;transform:scale(1.015)}
+
+/* Pause all start-screen child animations until .ready (avoids them firing
+   while the loading screen is still covering the page) */
+#start-screen *{animation-play-state:paused}
+#start-screen.ready *{animation-play-state:running}
+
+/* Language switcher (top-right) */
+.lang-switch{
+  position:fixed;top:18px;right:22px;
+  display:flex;gap:0;align-items:center;
+  font-family:var(--serif);font-size:.75rem;
+  color:var(--stone);z-index:110;
+  opacity:0;transform:translateY(-4px);
+  animation:fade-up .8s .25s var(--easing-out) forwards;
+}
+.lang-switch button{
+  background:none;border:none;cursor:pointer;
+  font:inherit;color:var(--stone);
+  padding:6px 9px;letter-spacing:.04em;
+  border-bottom:1px solid transparent;
+  transition:color .25s,border-color .25s;
+}
+.lang-switch button:hover{color:var(--ink)}
+.lang-switch button.on{color:var(--clay);border-bottom-color:var(--clay)}
+.lang-switch .sep{color:var(--cream-line);user-select:none}
+
+/* Brand block */
+.brand-block{
+  display:flex;align-items:flex-start;gap:14px;
+  opacity:0;transform:translateY(8px);
+  animation:fade-up .9s var(--easing-out) forwards;
+}
+.brand-mark{
+  font-family:var(--serif-sc);font-weight:700;
+  font-size:clamp(3rem,7vw,4.4rem);
+  line-height:.95;letter-spacing:-.015em;
   color:var(--ink);
 }
-#start-screen .tagline{
-  font-size:1rem;color:var(--stone);margin-top:6px;margin-bottom:28px;
-  font-weight:400;letter-spacing:.01em;
+html[lang^="en"] .brand-mark{font-family:var(--serif-en);letter-spacing:.005em;font-weight:500;font-size:clamp(3.2rem,7.4vw,4.8rem);}
+html[lang^="zh-TW"] .brand-mark{font-family:var(--serif-tc);}
+
+/* Seal — a small terracotta square with "印" character */
+.seal{
+  width:34px;height:34px;flex-shrink:0;
+  margin-top:.55em;
+  background:var(--clay);
+  color:var(--ivory);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif-sc);font-weight:600;font-size:.85rem;
+  letter-spacing:0;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.06),
+    0 1px 2px rgba(184,80,58,.18);
+  opacity:0;transform:rotate(-8deg) scale(.7);
+  animation:seal-stamp .7s .35s var(--easing-out) forwards;
+  position:relative;
 }
+.seal::before{
+  content:"";position:absolute;inset:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='34' height='34'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .35 0'/></filter><rect width='34' height='34' filter='url(%23n)'/></svg>");
+  mix-blend-mode:overlay;opacity:.45;pointer-events:none;
+}
+@keyframes seal-stamp{
+  0%  {opacity:0;transform:rotate(-14deg) scale(.6)}
+  60% {opacity:1;transform:rotate(4deg) scale(1.08)}
+  100%{opacity:1;transform:rotate(-2deg) scale(1)}
+}
+
+/* Tagline */
+.tagline{
+  font-family:var(--serif);
+  font-size:clamp(.95rem,1.6vw,1.05rem);
+  color:var(--stone);
+  margin-top:14px;margin-bottom:42px;
+  letter-spacing:.06em;font-weight:400;
+  font-style:italic;
+  opacity:0;transform:translateY(6px);
+  animation:fade-up .8s .35s var(--easing-out) forwards;
+}
+html[lang^="en"] .tagline{font-style:italic;letter-spacing:.02em;}
+html[lang^="zh"] .tagline{font-style:normal;letter-spacing:.18em;text-indent:.18em;}
+
+/* Mode grid */
 .mode-grid{
-  display:grid;grid-template-columns:repeat(2,1fr);
-  gap:8px;max-width:280px;width:100%;margin-bottom:24px;
+  display:grid;grid-template-columns:repeat(3,minmax(96px,1fr));
+  gap:10px;width:100%;max-width:380px;
+  margin-bottom:30px;
+}
+.mode-grid .cat-label{
+  display:none; /* Modern layout: category labels removed for cleaner grid */
 }
 .mode-card{
-  padding:12px 8px;
+  position:relative;
+  padding:18px 8px 14px;
   border:1px solid var(--cream-border);
   border-radius:var(--r-lg);
   cursor:pointer;text-align:center;
   background:var(--ivory);
   color:inherit;font:inherit;
-  transition:border-color .2s,transform .15s;
+  transition:
+    border-color .35s var(--easing-out),
+    transform .35s var(--easing-out),
+    box-shadow .35s var(--easing-out),
+    background-color .35s var(--easing-out);
+  opacity:0;transform:translateY(10px);
 }
-.mode-card:hover{border-color:var(--stone);transform:scale(1.02)}
-.mode-card:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
-.mode-card.active{border-color:var(--clay);background:#fdf5f2}
-.mode-card .icon{font-size:1.2rem;display:block;margin-bottom:3px}
-.mode-card .name{font-size:10px;font-weight:600;color:var(--ink)}
-.mode-card .req{font-size:8px;color:var(--stone);margin-top:1px}
-.cat-label{
-  grid-column:1/-1;font-size:9px;color:var(--stone);padding:8px 0 4px;
-  letter-spacing:.06em;text-transform:uppercase;font-weight:600;
+.mode-card:nth-child(1){animation:fade-up .7s .55s var(--easing-out) forwards}
+.mode-card:nth-child(2){animation:fade-up .7s .65s var(--easing-out) forwards}
+.mode-card:nth-child(3){animation:fade-up .7s .75s var(--easing-out) forwards}
+.mode-card:hover{
+  border-color:var(--stone-soft);
+  transform:translateY(-2px);
+  box-shadow:0 6px 18px -10px rgba(20,20,19,.18);
 }
+.mode-card:focus-visible{outline:2px solid var(--clay);outline-offset:3px}
+.mode-card.active{
+  border-color:var(--clay);
+  background:#fbf2ec;
+  box-shadow:inset 0 0 0 1px rgba(201,100,66,.16);
+}
+.mode-card .icon{font-size:1.55rem;display:block;margin-bottom:6px;line-height:1}
+.mode-card .name{
+  font-family:var(--serif);font-size:.78rem;
+  font-weight:600;color:var(--ink);letter-spacing:.04em;
+}
+html[lang^="zh"] .mode-card .name{letter-spacing:.12em;}
+.mode-card .req{
+  font-size:.625rem;color:var(--stone-soft);
+  margin-top:2px;letter-spacing:.06em;
+}
+
+/* CTA button */
 #btn-start{
-  padding:12px 40px;font-size:15px;font-weight:600;
+  font-family:var(--serif);
+  padding:13px 38px;
+  font-size:.95rem;font-weight:500;
   border:none;border-radius:var(--r-md);
-  cursor:pointer;background:var(--clay);color:var(--ivory);
-  transition:background .2s;
-  letter-spacing:.01em;
+  cursor:pointer;
+  background:var(--clay);color:var(--ivory);
+  letter-spacing:.18em;
+  position:relative;overflow:hidden;
+  box-shadow:0 1px 0 rgba(0,0,0,.04),0 8px 22px -12px rgba(201,100,66,.5);
+  transition:
+    background-color .3s var(--easing-out),
+    transform .25s var(--easing-out),
+    box-shadow .3s var(--easing-out),
+    letter-spacing .35s var(--easing-out);
+  opacity:0;transform:translateY(8px);
+  animation:fade-up .7s .95s var(--easing-out) forwards;
 }
-#btn-start:hover{background:#b8583a}
+html[lang^="en"] #btn-start{font-size:.85rem;letter-spacing:.24em;text-transform:uppercase;font-weight:500}
+html[lang^="zh"] #btn-start{font-size:1rem;letter-spacing:.32em;text-indent:.32em;font-weight:500}
+#btn-start::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18),transparent 60%);
+  opacity:0;transition:opacity .35s var(--easing-out);
+  pointer-events:none;
+}
+#btn-start:hover{
+  background:var(--clay-deep);
+  transform:translateY(-1px);
+  box-shadow:0 1px 0 rgba(0,0,0,.04),0 12px 28px -10px rgba(184,88,58,.55);
+}
+#btn-start:hover::after{opacity:1}
+#btn-start:active{transform:translateY(0)}
+
+/* Hint at bottom */
 .hint{
-  font-size:10px;color:var(--stone);max-width:500px;text-align:center;
-  line-height:1.6;margin-top:20px;
+  font-family:var(--serif);font-size:.72rem;color:var(--stone-soft);
+  max-width:540px;text-align:center;line-height:1.85;
+  margin-top:30px;letter-spacing:.04em;
+  opacity:0;animation:fade-up .7s 1.15s var(--easing-out) forwards;
 }
-.hint b{color:var(--ink);font-weight:600}
+.hint kbd{
+  display:inline-block;
+  font-family:var(--mono);font-size:.66rem;
+  padding:1px 6px;margin:0 2px;
+  border:1px solid var(--cream-line);
+  border-radius:3px;
+  background:var(--ivory);color:var(--ink);
+  letter-spacing:0;
+}
+.hint .sep{margin:0 .5em;color:var(--cream-line)}
 
-/* ── Scene Nav ── */
+/* Footer credit line */
+.credit{
+  position:fixed;bottom:14px;left:22px;z-index:110;
+  font-family:var(--serif);font-size:.65rem;letter-spacing:.18em;
+  color:var(--warm-silver);text-transform:uppercase;
+  opacity:0;animation:fade-up 1s 1.5s var(--easing-out) forwards;
+}
+.credit a{color:inherit;text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s}
+.credit a:hover{border-bottom-color:var(--warm-silver)}
+html[lang^="zh"] .credit{letter-spacing:.3em}
+
+/* Animations */
+@keyframes fade-up{
+  from{opacity:0;transform:translateY(8px)}
+  to  {opacity:1;transform:translateY(0)}
+}
+
+/* ──────────────────────────────────────────────────────────
+   ERROR SCREEN (camera denied)
+   ────────────────────────────────────────────────────────── */
+#error-screen{
+  position:fixed;inset:0;z-index:150;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:48px 24px;color:var(--ink);
+}
+#error-screen.show{display:flex}
+.err-icon{
+  width:42px;height:42px;border-radius:50%;
+  border:1.5px solid var(--clay);color:var(--clay);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-weight:600;font-size:1.25rem;
+  margin-bottom:20px;
+}
+.err-title{
+  font-family:var(--serif);font-weight:600;
+  font-size:1.4rem;letter-spacing:.04em;
+  margin-bottom:10px;
+}
+html[lang^="zh"] .err-title{letter-spacing:.14em}
+.err-body{
+  font-family:var(--serif);color:var(--stone);
+  font-size:.92rem;line-height:1.65;letter-spacing:.04em;
+  max-width:380px;text-align:center;
+  margin-bottom:28px;
+}
+html[lang^="zh"] .err-body{letter-spacing:.1em;line-height:1.85}
+.err-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.err-actions button{
+  font-family:var(--serif);font-size:.82rem;letter-spacing:.12em;
+  padding:10px 22px;border-radius:var(--r-md);cursor:pointer;
+  border:1px solid var(--cream-border);background:var(--ivory);color:var(--ink);
+  transition:border-color .25s,background-color .25s;
+}
+.err-actions button:hover{border-color:var(--stone)}
+.err-actions button.primary{background:var(--clay);color:var(--ivory);border-color:var(--clay)}
+.err-actions button.primary:hover{background:var(--clay-deep);border-color:var(--clay-deep)}
+
+/* ──────────────────────────────────────────────────────────
+   HUD — Museum placard, top-left
+   ────────────────────────────────────────────────────────── */
+#ui{
+  position:fixed;top:14px;left:14px;z-index:20;
+  background:rgba(20,20,19,.55);
+  backdrop-filter:blur(14px) saturate(115%);
+  -webkit-backdrop-filter:blur(14px) saturate(115%);
+  color:var(--ivory);
+  padding:11px 14px 10px;
+  border-radius:var(--r-md);
+  border:1px solid rgba(245,244,237,.05);
+  font-family:var(--serif);
+  opacity:.86;
+  transition:opacity .3s;
+  user-select:none;
+  min-width:152px;
+}
+#ui:hover{opacity:1}
+.ui-row{
+  display:flex;align-items:baseline;gap:8px;
+  padding:3px 0;
+  position:relative;
+}
+.ui-row + .ui-row{border-top:1px solid rgba(245,244,237,.06)}
+.ui-row .lbl{
+  flex:0 0 auto;
+  font-size:.62rem;color:var(--warm-silver);
+  letter-spacing:.18em;text-transform:uppercase;
+  font-weight:500;font-feature-settings:"tnum";
+}
+html[lang^="zh"] .ui-row .lbl{
+  letter-spacing:.22em;text-transform:none;font-size:.66rem;
+  font-family:var(--serif-sc);
+}
+html[lang^="zh-TW"] .ui-row .lbl{font-family:var(--serif-tc)}
+.ui-row .val{
+  flex:1;text-align:right;
+  font-size:.78rem;color:var(--ivory);
+  font-weight:500;letter-spacing:.04em;
+}
+.ui-row .val b{color:var(--clay-soft);font-weight:600}
+#ui .fps{
+  display:none;
+  font-family:var(--mono);font-size:.6rem;
+  color:var(--stone-soft);
+  margin-top:6px;padding-top:6px;
+  border-top:1px solid rgba(245,244,237,.06);
+  letter-spacing:.08em;
+  text-align:right;
+}
+#ui.debug .fps{display:block}
+
+/* Scene nav dots */
 .scene-nav{
-  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-  z-index:30;display:flex;gap:10px;opacity:0;transition:opacity .4s;
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  z-index:30;display:flex;gap:14px;
+  opacity:0;transition:opacity .55s var(--easing-out);
+  padding:8px 14px;
+  background:rgba(245,244,237,.55);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-radius:99px;
+  border:1px solid rgba(245,244,237,.4);
+  box-shadow:0 6px 22px -12px rgba(0,0,0,.25);
 }
-.scene-dot{width:8px;height:8px;border-radius:50%;background:var(--stone);transition:all .25s}
-.scene-dot.active{background:var(--clay);box-shadow:0 0 6px rgba(201,100,66,.35)}
+.scene-nav.show{opacity:1}
+.scene-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--warm-silver);
+  transition:all .35s var(--easing-out);
+  position:relative;cursor:pointer;
+}
+.scene-dot::after{
+  content:attr(data-name);
+  position:absolute;bottom:18px;left:50%;
+  transform:translateX(-50%) translateY(4px);
+  font-family:var(--serif);font-size:.68rem;color:var(--ink);
+  white-space:nowrap;letter-spacing:.12em;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;
+}
+.scene-dot:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+.scene-dot:hover{transform:scale(1.35)}
+.scene-dot.active{
+  background:var(--clay);width:8px;height:8px;
+  box-shadow:0 0 0 3px rgba(201,100,66,.16);
+}
 
-/* ── Gesture HUD ── */
+/* Gesture HUD */
 #gh{
-  position:fixed;bottom:56px;left:50%;transform:translateX(-50%);
-  color:var(--clay);font-size:12px;z-index:30;opacity:0;transition:opacity .3s;
-  font-weight:500;letter-spacing:.02em;
+  position:fixed;bottom:64px;left:50%;transform:translateX(-50%);
+  color:var(--clay);font-family:var(--serif);
+  font-size:.82rem;letter-spacing:.16em;
+  z-index:30;opacity:0;transition:opacity .3s;
+  font-weight:500;
+}
+
+/* First-time hint overlay */
+#first-hint{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:25;pointer-events:none;
+  font-family:var(--serif);font-size:.95rem;
+  color:var(--ink);
+  background:rgba(245,244,237,.85);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  padding:14px 24px;border-radius:99px;
+  border:1px solid var(--cream-line);
+  letter-spacing:.16em;
+  opacity:0;transition:opacity .8s var(--easing-out);
+  white-space:nowrap;
+}
+#first-hint.show{opacity:.9}
+html[lang^="zh"] #first-hint{letter-spacing:.22em}
+
+/* ──────────────────────────────────────────────────────────
+   RESPONSIVE
+   ────────────────────────────────────────────────────────── */
+@media (max-width:680px){
+  #start-screen{padding:32px 20px;justify-content:flex-start;padding-top:max(env(safe-area-inset-top),52px)}
+  .lang-switch{top:14px;right:16px}
+  .brand-block{gap:10px}
+  .brand-mark{font-size:2.8rem !important}
+  .seal{width:28px;height:28px;font-size:.72rem}
+  .tagline{font-size:.92rem;margin-bottom:30px;letter-spacing:.14em}
+  .mode-grid{grid-template-columns:1fr;max-width:300px;gap:8px}
+  .mode-card{padding:14px 16px;display:flex;align-items:center;text-align:left;gap:14px}
+  .mode-card .icon{font-size:1.35rem;margin-bottom:0}
+  .mode-card .name{font-size:.85rem}
+  .mode-card .req{margin-top:0;margin-left:auto;font-size:.7rem}
+  #btn-start{padding:14px 36px;font-size:.92rem;width:100%;max-width:300px}
+  .hint{font-size:.68rem;max-width:300px;line-height:2;padding:0 8px}
+  .hint kbd{font-size:.62rem;padding:1px 4px}
+  .credit{font-size:.6rem;left:50%;transform:translateX(-50%);text-align:center;width:100%}
+  #ui{font-size:.85em;padding:9px 12px;min-width:130px;top:10px;left:10px}
+  #pip{width:100px;bottom:10px;right:10px}
+  .scene-nav{bottom:18px;gap:10px;padding:7px 12px}
+  .scene-dot::after{font-size:.62rem}
+  #first-hint{font-size:.82rem;padding:10px 18px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    transition-duration:.01ms !important;
+  }
 }
 </style>
 </head>
+
 <body>
 
-<div id="start-screen">
-  <div class="brand">墨卷</div>
-  <div class="tagline">光照之处，墨色生辉</div>
-  <div class="mode-grid" id="mg"></div>
-  <button id="btn-start">展开画卷</button>
-  <p class="hint">
-    <b>M</b> 切换模式&ensp;<b>← →</b> 切换场景&ensp;<b>1/2/3</b> 风格&ensp;<b>X</b> 镜像
-    <br><b>F</b> 全屏&ensp;<b>Q</b> 退出&ensp;<b>滚轮</b> 光圈&ensp;<b>[ ]</b> 灵敏度
-  </p>
+<!-- ──────── Loading screen ──────── -->
+<div id="loading" class="paper">
+  <div class="mark">墨卷</div>
+  <div class="bar"></div>
+  <div class="word" data-i18n="loading">正在展开画卷</div>
 </div>
 
+<!-- ──────── Start screen ──────── -->
+<div id="start-screen" class="paper">
+  <div class="lang-switch" id="lang-switch" role="group" aria-label="Language">
+    <button data-lang="zh-CN">简</button><span class="sep">·</span>
+    <button data-lang="zh-TW">繁</button><span class="sep">·</span>
+    <button data-lang="en">EN</button>
+  </div>
+
+  <div class="brand-block">
+    <div class="brand-mark" data-i18n="brand">墨卷</div>
+    <div class="seal" aria-hidden="true">印</div>
+  </div>
+  <div class="tagline" data-i18n="tagline">光照之处，墨色生辉</div>
+
+  <div class="mode-grid" id="mg"></div>
+
+  <button id="btn-start" data-i18n="btnStart">展开画卷</button>
+
+  <p class="hint" id="hint"></p>
+
+  <div class="credit">
+    <a href="https://github.com/Chunyu-Hugh/ink_scroll" target="_blank" rel="noopener" data-i18n="credit">An open ink-painting experiment</a>
+  </div>
+</div>
+
+<!-- ──────── Error screen (camera denied) ──────── -->
+<div id="error-screen" class="paper">
+  <div class="err-icon">⚠</div>
+  <div class="err-title" data-i18n="errTitle">无法访问摄像头</div>
+  <div class="err-body" data-i18n="errBody">你可以使用鼠标模式继续体验画卷。</div>
+  <div class="err-actions">
+    <button class="primary" id="err-mouse" data-i18n="errMouse">切换到鼠标模式</button>
+    <button id="err-retry" data-i18n="errRetry">重试</button>
+  </div>
+</div>
+
+<!-- ──────── Canvas ──────── -->
 <canvas id="display"></canvas>
 <canvas id="pip"></canvas>
+
+<!-- ──────── First-time hint ──────── -->
+<div id="first-hint" data-i18n="firstHint">↑ 移动以揭示画卷</div>
+
+<!-- ──────── Gesture HUD ──────── -->
 <div id="gh"></div>
+
+<!-- ──────── Scene nav ──────── -->
 <div class="scene-nav" id="scene-nav"></div>
-<div id="ui">
-  <div>🎯 <b id="hm">-</b> <span class="divider">·</span> 🏔 <b id="hsc">-</b></div>
-  <div>🎨 <b id="hs">-</b> <span class="divider">·</span> ⭕ <b id="hr">-</b></div>
-  <div id="he"></div>
-  <div>⚡ <b id="hf">-</b> fps</div>
+
+<!-- ──────── HUD placard ──────── -->
+<div id="ui" aria-label="Status">
+  <div class="ui-row"><span class="lbl" data-i18n="hudMode">模式</span><span class="val" id="hm">—</span></div>
+  <div class="ui-row"><span class="lbl" data-i18n="hudScene">场景</span><span class="val" id="hsc">—</span></div>
+  <div class="ui-row"><span class="lbl" data-i18n="hudStyle">风格</span><span class="val" id="hs">—</span></div>
+  <div class="ui-row"><span class="lbl" data-i18n="hudRadius">光圈</span><span class="val" id="hr">—</span></div>
+  <div class="ui-row" id="he-row" style="display:none"><span class="lbl" data-i18n="hudGesture">手势</span><span class="val" id="he">—</span></div>
+  <div class="fps"><span id="hf">—</span> fps</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js"></script>
 <script>
-// ═══════════════════════════════════════════
-// 墨卷 · Ink Scroll — Core Engine
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   墨卷 · Ink Scroll — Core Engine
+   ═══════════════════════════════════════════════════════════ */
 
-// ── State ──
+/* ───────────────────────────────────────────────────────────
+   I18N — three locales, persisted, auto-detected
+   ─────────────────────────────────────────────────────────── */
+const I18N = {
+  'zh-CN': {
+    brand:'墨卷',
+    tagline:'光照之处，墨色生辉',
+    btnStart:'展开画卷',
+    loading:'正在展开画卷',
+    catCamera:'摄像头',
+    catNoCamera:'无需摄像头',
+    modeFlashlight:'手电筒',
+    modeHand:'手势识别',
+    modeMouse:'鼠标跟随',
+    sceneShanshui:'山水',
+    sceneBamboo:'竹林',
+    sceneSnow:'雪景',
+    sceneFlowers:'花鸟',
+    sceneStars:'星空',
+    styleEdges:'墨线',
+    styleSketch:'素描',
+    styleDark:'暗调',
+    gestureOpen:'张开',
+    gestureFist:'握拳',
+    gesturePoint:'聚光',
+    hudMode:'模式',
+    hudScene:'场景',
+    hudStyle:'风格',
+    hudRadius:'光圈',
+    hudGesture:'手势',
+    errTitle:'无法访问摄像头',
+    errBody:'你可以使用鼠标模式继续体验画卷，无需任何额外设置。',
+    errMouse:'切换到鼠标模式',
+    errRetry:'重试',
+    firstHint:'移动鼠标 · 揭示画卷',
+    credit:'墨卷 · 开放的水墨实验',
+    hintHTML:'<kbd>M</kbd> 切换模式<span class="sep">·</span><kbd>← →</kbd> 切换场景<span class="sep">·</span><kbd>1 2 3</kbd> 风格<br><kbd>滚轮</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 灵敏度<span class="sep">·</span><kbd>X</kbd> 镜像<span class="sep">·</span><kbd>F</kbd> 全屏<span class="sep">·</span><kbd>Q</kbd> 退出',
+  },
+  'zh-TW': {
+    brand:'墨卷',
+    tagline:'光照之處，墨色生輝',
+    btnStart:'展開畫卷',
+    loading:'正在展開畫卷',
+    catCamera:'攝像頭',
+    catNoCamera:'無需攝像頭',
+    modeFlashlight:'手電筒',
+    modeHand:'手勢辨識',
+    modeMouse:'滑鼠跟隨',
+    sceneShanshui:'山水',
+    sceneBamboo:'竹林',
+    sceneSnow:'雪景',
+    sceneFlowers:'花鳥',
+    sceneStars:'星空',
+    styleEdges:'墨線',
+    styleSketch:'素描',
+    styleDark:'暗調',
+    gestureOpen:'張開',
+    gestureFist:'握拳',
+    gesturePoint:'聚光',
+    hudMode:'模式',
+    hudScene:'場景',
+    hudStyle:'風格',
+    hudRadius:'光圈',
+    hudGesture:'手勢',
+    errTitle:'無法存取攝像頭',
+    errBody:'您可以使用滑鼠模式繼續體驗畫卷，無需任何額外設定。',
+    errMouse:'切換到滑鼠模式',
+    errRetry:'重試',
+    firstHint:'移動滑鼠 · 揭示畫卷',
+    credit:'墨卷 · 開放的水墨實驗',
+    hintHTML:'<kbd>M</kbd> 切換模式<span class="sep">·</span><kbd>← →</kbd> 切換場景<span class="sep">·</span><kbd>1 2 3</kbd> 風格<br><kbd>滾輪</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 靈敏度<span class="sep">·</span><kbd>X</kbd> 鏡像<span class="sep">·</span><kbd>F</kbd> 全螢幕<span class="sep">·</span><kbd>Q</kbd> 退出',
+  },
+  'en': {
+    brand:'Ink Scroll',
+    tagline:'Where light falls, ink comes alive',
+    btnStart:'Unfurl the Scroll',
+    loading:'Unfurling',
+    catCamera:'Camera',
+    catNoCamera:'No camera',
+    modeFlashlight:'Flashlight',
+    modeHand:'Hand',
+    modeMouse:'Mouse',
+    sceneShanshui:'Mountains',
+    sceneBamboo:'Bamboo',
+    sceneSnow:'Snow',
+    sceneFlowers:'Blossoms',
+    sceneStars:'Stars',
+    styleEdges:'Edges',
+    styleSketch:'Sketch',
+    styleDark:'Dark',
+    gestureOpen:'Open',
+    gestureFist:'Fist',
+    gesturePoint:'Point',
+    hudMode:'Mode',
+    hudScene:'Scene',
+    hudStyle:'Style',
+    hudRadius:'Radius',
+    hudGesture:'Gesture',
+    errTitle:'Camera unavailable',
+    errBody:"That's fine — you can still explore the scroll with your mouse or trackpad.",
+    errMouse:'Continue with mouse',
+    errRetry:'Try again',
+    firstHint:'Move the cursor to reveal',
+    credit:'An open ink-painting experiment',
+    hintHTML:'<kbd>M</kbd> mode<span class="sep">·</span><kbd>← →</kbd> scene<span class="sep">·</span><kbd>1 2 3</kbd> style<br><kbd>wheel</kbd> radius<span class="sep">·</span><kbd>[ ]</kbd> sensitivity<span class="sep">·</span><kbd>X</kbd> mirror<span class="sep">·</span><kbd>F</kbd> fullscreen<span class="sep">·</span><kbd>Q</kbd> quit',
+  },
+};
+
+function detectLang(){
+  const saved = localStorage.getItem('ink-lang');
+  if (saved && I18N[saved]) return saved;
+  const n = (navigator.language || 'en').toLowerCase();
+  if (n.startsWith('zh-tw') || n.startsWith('zh-hk') || n.startsWith('zh-hant')) return 'zh-TW';
+  if (n.startsWith('zh')) return 'zh-CN';
+  return 'en';
+}
+let LANG = detectLang();
+function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key; }
+
+function applyTranslations(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k = el.dataset.i18n;
+    if (k === 'hintHTML') el.innerHTML = t(k);
+    else el.textContent = t(k);
+  });
+  // Hint is special (HTML)
+  const hintEl = document.getElementById('hint');
+  if (hintEl) hintEl.innerHTML = t('hintHTML');
+  // Mode card req labels (require translation if shown)
+  document.querySelectorAll('.lang-switch button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.lang === LANG);
+  });
+  // Refresh mode cards
+  rebuildModeCards();
+  // Refresh scene nav tooltips
+  refreshSceneNav();
+  // Refresh HUD scene name (HUD mode/style/radius refresh per frame in processFrame)
+  if (typeof S !== 'undefined' && S.running){
+    const hsc = document.getElementById('hsc');
+    if (hsc) hsc.textContent = sceneNameOf(S.scene);
+  }
+}
+function setLang(l){
+  if (!I18N[l]) return;
+  LANG = l;
+  localStorage.setItem('ink-lang', l);
+  applyTranslations();
+}
+
+/* ───────────────────────────────────────────────────────────
+   State
+   ─────────────────────────────────────────────────────────── */
 const S={
   mode:'mouse',scene:0,style:'edges',radius:140,threshold:50,camSens:1.0,
   smooth:{x:-1,y:-1},alpha:.3,mirrorX:true,running:false,fps:0,
   mouseX:window.innerWidth/2,mouseY:window.innerHeight/2,
   hlm:null,gesture:'none',hpos:null,lastHx:0,lastHy:0,
-  transition:{active:false,from:null,start:0,duration:500}
+  transition:{active:false,from:null,start:0,duration:500},
+  firstHintShown:false,firstMoveDistance:0,debug:false,
 };
 const D=document.getElementById('display'),ctx=D.getContext('2d'),
   pip=document.getElementById('pip'),pipCtx=pip.getContext('2d'),
@@ -152,17 +773,30 @@ let hiCvs,hiCtx,mkCvs,mkCtx,wkCvs,wkCtx,scCvs,scCtx,target,
   vid=null,str=null,DW,DH,VW=640,VH=480,pipW=160,pipH=90,fc=0,ft=performance.now();
 let hands=null,hr=false;
 
-// ── Scene Names & Nav Dots ──
-const sceneNames=['🏔 山水','🎋 竹林','❄️ 雪景','🌸 花鸟','🌌 星空'];
-for(let i=0;i<5;i++){
-  const d=document.createElement('div');
-  d.className='scene-dot'+(i===0?' active':'');
-  sceneNav.appendChild(d);
+/* ───────────────────────────────────────────────────────────
+   Scene metadata — names are looked up via i18n
+   ─────────────────────────────────────────────────────────── */
+const sceneIcons=['🏔','🎋','❄','🌸','🌌'];
+const sceneKeys=['sceneShanshui','sceneBamboo','sceneSnow','sceneFlowers','sceneStars'];
+const sceneNameOf=(i)=> `${sceneIcons[i]} ${t(sceneKeys[i])}`;
+
+function refreshSceneNav(){
+  // Rebuild scene dots with current locale names
+  sceneNav.innerHTML='';
+  for(let i=0;i<5;i++){
+    const d=document.createElement('button');
+    d.type='button';
+    d.className='scene-dot'+(i===S.scene?' active':'');
+    d.setAttribute('data-name', sceneNameOf(i));
+    d.setAttribute('aria-label', sceneNameOf(i));
+    d.addEventListener('click', ()=>{ if(S.running) changeScene(i); });
+    sceneNav.appendChild(d);
+  }
 }
 
-// ═══════════════════════════════════════════
-// 5 SCENES — AI-generated Chinese ink paintings
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Scene images
+   ─────────────────────────────────────────────────────────── */
 const sceneImages=[];
 const sceneFiles=['shanshui.png','bamboo.png','snow.png','flowers.png','stars.png'];
 
@@ -185,16 +819,12 @@ function drawScene(t){
   scCvs.width=W;scCvs.height=H;
   const img=sceneImages[S.scene];
   if(img){
-    // Contain: fit whole image, letterbox if needed
     const iw=img.naturalWidth,ih=img.naturalHeight;
     const scale=Math.min(W/iw,H/ih);
     const dw=iw*scale,dh=ih*scale,dx=(W-dw)/2,dy=(H-dh)/2;
-    // Background letterbox
     g.fillStyle='#1a1a18';g.fillRect(0,0,W,H);
     g.drawImage(img,0,0,iw,ih,dx,dy,dw,dh);
-    // Animated overlay (mist, birds, snow, petals)
     animateOverlay(g,W,H,dx,dy,dw,dh,t);
-    // Store image bounds for spotlight coordinate mapping
     S.imgBounds={x:dx,y:dy,w:dw,h:dh};
   }else{
     g.fillStyle=['#f5f0e8','#e8f0e0','#dce8f0','#faf5ee','#0a0a2e'][S.scene];
@@ -203,16 +833,12 @@ function drawScene(t){
   }
 }
 
-// ═══════════════════════════════════════════
-// ANIMATED OVERLAY — Rich atmospheric effects
-// All effects confined within image bounds (ix,iy,iw,ih).
-// Every scene gets a distinct, highly-visible animation layer.
-// Opacities boosted 2-3× for clear visibility through spotlight.
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Animated overlay (unchanged from previous version)
+   ─────────────────────────────────────────────────────────── */
 function animateOverlay(g,W,H,ix,iy,iw,ih,t){
   const s=S.scene;
   const PI=Math.PI;
-  // ── Shared: drifting mist/wisps (all scenes) ──
   for(let i=0;i<16;i++){
     const mx=ix+((i*.0625+t*.012)%1)*iw;
     const my=iy+ih*(.12+.76*Math.sin(i*2.2+t*.04));
@@ -221,9 +847,7 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
     g.fillStyle='rgba(255,255,245,.10)';
     g.beginPath();g.ellipse(mx,my,mw,mh,Math.sin(i+t*.05)*.4,0,PI*2);g.fill();
   }
-
-  if(s===0){ // 🏔 山水 — flocks of birds + drifting clouds
-    // Clouds
+  if(s===0){
     for(let i=0;i<6;i++){
       const cx=ix+((i*.2+t*.025)%1.3-.15)*iw;
       const cy=iy+ih*(.05+i*.07);
@@ -231,7 +855,6 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
       g.beginPath();g.ellipse(cx,cy,iw*.14,ih*.05,0,0,PI*2);g.fill();
       g.beginPath();g.ellipse(cx+iw*.07,cy-ih*.015,iw*.10,ih*.04,0,0,PI*2);g.fill();
     }
-    // Birds — 10 flocks of 6 each
     for(let f=0;f<10;f++){
       const baseX=ix+iw*(.10+(f*.09));const baseY=iy+ih*(.04+f%3*.05);
       const spread=iw*.10;
@@ -243,8 +866,7 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
         g.beginPath();g.arc(bx+3.5,by,3.5,PI*.15,PI*.85);g.stroke();
       }
     }
-  }else if(s===1){ // 🎋 竹林 — fireflies + swaying mist
-    // Fireflies — 80 glowing dots, brighter
+  }else if(s===1){
     for(let i=0;i<80;i++){
       const fx=ix+((i*.114+t*.01)%1.1-.05)*iw;
       const fy=iy+((i*.083+t*.018)%1.05-.025)*ih;
@@ -254,7 +876,6 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
       g.beginPath();g.arc(fx,fy,2+Math.sin(i)*.8,0,PI*2);g.fill();
       g.shadowBlur=0;
     }
-    // Swaying bamboo tips
     for(let i=0;i<8;i++){
       const bx=ix+iw*(.10+i*.10);const by=iy+ih*(.04+i%3*.04);
       g.strokeStyle='rgba(50,60,35,.22)';g.lineWidth=1.2;
@@ -262,8 +883,7 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
       g.quadraticCurveTo(bx+Math.sin(t*2+i)*8,by+ih*.14,bx+Math.sin(t*2.2+i)*14,by);
       g.stroke();
     }
-  }else if(s===2){ // ❄️ 雪景 — blizzard (dense, fast)
-    // Heavy snow — 150 flakes
+  }else if(s===2){
     for(let i=0;i<150;i++){
       const seed=i*.0593;
       const sx=ix+((seed*211+t*(.006+.003*Math.sin(i)))%1.08-.04)*iw;
@@ -273,14 +893,12 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
       g.fillStyle='rgba(255,255,255,.72)';
       g.beginPath();g.arc(sx+wob,sy,sz,0,PI*2);g.fill();
     }
-    // Ground mist banks
     for(let i=0;i<6;i++){
       const mx=ix+((i*.18+t*.02)%1.2-.1)*iw;
       g.fillStyle='rgba(255,255,250,.12)';
       g.beginPath();g.ellipse(mx,iy+ih*(.72+.06*Math.sin(i)),iw*.28,ih*.06,0,0,PI*2);g.fill();
     }
-  }else if(s===3){ // 🌸 花鸟 — dense petals + butterflies
-    // Petals — 80 falling, swirling
+  }else if(s===3){
     for(let i=0;i<80;i++){
       const seed=i*.0371;
       const px=ix+((seed*229+t*(.005+.003*Math.sin(i)))%1.10-.05)*iw;
@@ -291,7 +909,6 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
       g.beginPath();g.ellipse(0,0,3+Math.sin(seed)*2,1.5,0,0,PI*2);g.fill();
       g.restore();
     }
-    // Butterflies — 14, faster figure-8s
     for(let i=0;i<14;i++){
       const bx=ix+iw*(.08+i*.07)+Math.sin(t*1.8+i*2.2)*iw*.15;
       const by=iy+ih*(.15+i%3*.18)+Math.cos(t*1.5+i*1.9)*ih*.10;
@@ -302,8 +919,7 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
       g.beginPath();g.ellipse(3.5,0,3.5,2.5,-wingAngle,0,PI*2);g.fill();
       g.restore();
     }
-  }else if(s===4){ // 🌌 星空 — shooting stars, twinkling, aurora
-    // Multiple shooting stars at different phases
+  }else if(s===4){
     for(let i=0;i<5;i++){
       const phase=(t*.12+i*.2)%2.2;
       if(phase>1.2&&phase<2.2){
@@ -314,7 +930,6 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
         g.beginPath();g.moveTo(ssx,ssy);g.lineTo(ssx-40,ssy+20);g.stroke();
       }
     }
-    // Twinkling stars — 100
     for(let i=0;i<100;i++){
       const seed=i*.0143;
       const tx=ix+seed*iw;const ty=iy+Math.sin(seed*41)*ih*.55;
@@ -324,7 +939,6 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
         g.beginPath();g.arc(tx,ty,1+twinkle*1.2,0,PI*2);g.fill();
       }
     }
-    // Aurora-like bands
     for(let i=0;i<4;i++){
       const ax=ix+iw*(.15+i*.22);
       const ay=iy+ih*(.06+i*.03);
@@ -339,14 +953,13 @@ function animateOverlay(g,W,H,ix,iy,iw,ih,t){
   }
 }
 
-// ═══════════════════════════════════════════
-// HIDDEN LAYER — Generated once per scene from static image only
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Hidden layer (Sobel / Sketch / Dark)
+   ─────────────────────────────────────────────────────────── */
 function genHidden(){
   if(!target)return;const w=target.width,h=target.height;
   if(!hiCvs){hiCvs=document.createElement('canvas');hiCtx=hiCvs.getContext('2d');mkCvs=document.createElement('canvas');mkCtx=mkCvs.getContext('2d');wkCvs=document.createElement('canvas');wkCtx=wkCvs.getContext('2d');}
   hiCvs.width=mkCvs.width=w;hiCvs.height=mkCvs.height=h;
-  // Use a clean canvas with the static image only (no animation overlay)
   const tmpCvs=document.createElement('canvas');tmpCvs.width=w;tmpCvs.height=h;
   const tmpCtx=tmpCvs.getContext('2d');
   tmpCtx.fillStyle='#1a1a18';tmpCtx.fillRect(0,0,w,h);
@@ -385,12 +998,11 @@ function dk(d,w,h){
   return o;
 }
 
-// ═══════════════════════════════════════════
-// DETECTION — Flashlight
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Flashlight detection (O(n) histogram percentile)
+   ─────────────────────────────────────────────────────────── */
 function spF(id){
   const dd=id.data,len=dd.length/4,lu=new Uint8Array(len);
-  // O(n) histogram-based percentile (256 bins, integer luminance)
   const hist=new Uint32Array(256);
   for(let i=0;i<len;i++){
     const v=(dd[i*4]*0.299+dd[i*4+1]*0.587+dd[i*4+2]*0.114)|0;
@@ -405,25 +1017,19 @@ function spF(id){
   }return cnt<20?null:smap(sx/sw,sy/sw);
 }
 function smap(cx,cy){
-  // Map camera coords to IMAGE BOUNDS (not full canvas)
-  // sens 1.0 = direct; 1.8 = center 55% of cam → full painting
   const sens=S.camSens||1;
   let nx=((cx/VW-0.5)*sens+0.5);
   let ny=((cy/VH-0.5)*sens+0.5);
-  // Clamp to 0-1
   nx=Math.max(0,Math.min(1,nx));ny=Math.max(0,Math.min(1,ny));
   let sx=nx*DW,sy=ny*DH;
-  if(S.imgBounds){
-    const ib=S.imgBounds;
-    sx=ib.x+nx*ib.w;sy=ib.y+ny*ib.h;
-  }
+  if(S.imgBounds){const ib=S.imgBounds;sx=ib.x+nx*ib.w;sy=ib.y+ny*ib.h;}
   S.smooth.x<0?(S.smooth.x=sx,S.smooth.y=sy,S.alpha=.5):(S.smooth.x=S.alpha*sx+(1-S.alpha)*S.smooth.x,S.smooth.y=S.alpha*sy+(1-S.alpha)*S.smooth.y,S.alpha=.3);
   return{x:S.smooth.x,y:S.smooth.y};
 }
 
-// ═══════════════════════════════════════════
-// HAND GESTURE (MediaPipe Hands)
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Hand gesture (MediaPipe Hands)
+   ─────────────────────────────────────────────────────────── */
 function iH(){
   if(hr)return;
   hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${f}`});
@@ -432,7 +1038,6 @@ function iH(){
     if(r.multiHandLandmarks?.length){
       S.hlm=r.multiHandLandmarks[0];S.gesture=rg(S.hlm);
       const cx=(S.hlm[0].x+S.hlm[9].x)/2,cy=(S.hlm[0].y+S.hlm[9].y)/2;
-      // Sensitivity amplification mapped to image bounds
       const sens=S.camSens||1;
       let nx=((cx-0.5)*sens+0.5),ny=((cy-0.5)*sens+0.5);
       nx=Math.max(0,Math.min(1,nx));ny=Math.max(0,Math.min(1,ny));
@@ -447,63 +1052,69 @@ function rg(lm){
   for(const f of fs)if(lm[f.t].y<lm[f.p].y)e++;
   if(e>=3)return'open';if(e===0)return'fist';if(e===1&&lm[8].y<lm[6].y)return'point';return'open';
 }
-function detectSwipe(cx,cy){
-  if(S.lastHx===0){S.lastHx=cx;S.lastHy=cy;return;}
-  const dx=cx-S.lastHx;if(Math.abs(dx)>.25&&S.gesture==='open'){
-    if(dx>0)changeScene((S.scene+1)%5);else changeScene((S.scene+4)%5);
-    S.lastHx=cx;S.lastHy=cy;
-  }
-}
 async function pH(){if(!hr||!wkCvs)return;try{await hands.send({image:wkCvs});}catch(e){console.warn('MediaPipe Hands send failed:',e.message);}}
 
-// ═══════════════════════════════════════════
-// 2 INTERACTION MODES
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Modes
+   ─────────────────────────────────────────────────────────── */
 const M={
-  flashlight:{icon:'🔦',name:'手电筒',init(){},spot(id){return spF(id);},cln(){},ex:()=>'',needCam:true,req:'📷'},
-  hand:{icon:'✋',name:'手势识别',init(){iH();},spot(id){if(S.hpos&&S.gesture!=='fist')return{x:S.hpos.x,y:S.hpos.y,radius:S.gesture==='point'?25:S.radius};return null;},cln(){if(hands){try{hands.close();}catch(e){console.warn('hands.close failed:',e.message);}hands=null;hr=false;}S.hlm=null;S.hpos=null;S.gesture='none';},ex:()=>`🖐 ${({open:'张开',fist:'握拳',point:'聚光'})[S.gesture]||'-'}`,needCam:true,req:'📷'},
-  mouse:{icon:'🖱',name:'鼠标跟随',init(){},spot(id){return{x:S.mouseX,y:S.mouseY,radius:S.radius};},cln(){},ex:()=>'',needCam:false,req:''},
+  flashlight:{
+    icon:'🔦',nameKey:'modeFlashlight',
+    init(){},spot(id){return spF(id);},cln(){},
+    ex:()=>'', needCam:true,
+  },
+  hand:{
+    icon:'✋',nameKey:'modeHand',
+    init(){iH();},
+    spot(id){if(S.hpos&&S.gesture!=='fist')return{x:S.hpos.x,y:S.hpos.y,radius:S.gesture==='point'?25:S.radius};return null;},
+    cln(){if(hands){try{hands.close();}catch(e){console.warn('hands.close failed:',e.message);}hands=null;hr=false;}S.hlm=null;S.hpos=null;S.gesture='none';},
+    ex:()=>{
+      const map={open:'gestureOpen',fist:'gestureFist',point:'gesturePoint'};
+      return map[S.gesture] ? `🖐 ${t(map[S.gesture])}` : '';
+    },
+    needCam:true,
+  },
+  mouse:{
+    icon:'🖱',nameKey:'modeMouse',
+    init(){},spot(id){return{x:S.mouseX,y:S.mouseY,radius:S.radius};},
+    cln(){},ex:()=>'',needCam:false,
+  },
 };
 
-// ═══════════════════════════════════════════
-// SCENE SWITCH — Clean crossfade, no particles
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Scene change with crossfade
+   ─────────────────────────────────────────────────────────── */
 function changeScene(n){
   if(n===S.scene)return;
-  // Capture old scene for crossfade
   const oldImg=document.createElement('canvas');oldImg.width=DW;oldImg.height=DH;
   oldImg.getContext('2d').drawImage(scCvs,0,0);
   S.scene=n;
   drawScene(performance.now()/1000);target=scCvs;genHidden();
   S.transition={active:true,from:oldImg,start:performance.now(),duration:500};
-  // Update UI
   document.querySelectorAll('.scene-dot').forEach((d,i)=>d.classList.toggle('active',i===n));
-  document.getElementById('hsc').textContent=sceneNames[n];
-  sceneNav.style.opacity='1';setTimeout(()=>sceneNav.style.opacity='0',2000);
+  document.getElementById('hsc').textContent=sceneNameOf(n);
+  sceneNav.classList.add('show');
+  clearTimeout(changeScene._t);
+  changeScene._t=setTimeout(()=>sceneNav.classList.remove('show'),2200);
 }
 
-// ═══════════════════════════════════════════
-// MAIN RENDER LOOP
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Main render loop
+   ─────────────────────────────────────────────────────────── */
 function processFrame(){
   if(!S.running||!target)return;
   try{
   const m=M[S.mode];
-  // Camera frame (skip if cam unavailable)
   if(vid&&vid.readyState>=2){
     wkCtx.save();if(S.mirrorX){wkCtx.translate(VW,0);wkCtx.scale(-1,1);}
     wkCtx.drawImage(vid,0,0,VW,VH);wkCtx.restore();
   }
   const fd=wkCvs?wkCtx.getImageData(0,0,VW,VH):null;
   let spot=fd?m.spot(fd):null;
-  // Only fall back to mouse in mouse mode (not camera modes)
   if(!spot&&S.mode==='mouse'){spot={x:S.mouseX,y:S.mouseY,radius:S.radius};}
-  // Draw color scene (with animation)
   drawScene(performance.now()/1000);target=scCvs;
 
-  // Render: camera ghost → ink layer → clip spot → reveal color
   ctx.clearRect(0,0,DW,DH);
-  // Camera feed ghost — within image bounds for alignment
   if(vid&&vid.readyState>=2&&S.imgBounds){
     const ib=S.imgBounds;
     ctx.save();ctx.globalAlpha=.15;
@@ -511,26 +1122,18 @@ function processFrame(){
     else{ctx.drawImage(vid,ib.x,ib.y,ib.w,ib.h);}
     ctx.restore();
   }
-  // Ink layer
   ctx.drawImage(hiCvs,0,0,DW,DH);
   if(spot){
     const r=spot.radius||S.radius;
     ctx.save();
-    // Clip to image bounds first (avoid revealing black letterbox)
-    if(S.imgBounds){
-      const ib=S.imgBounds;
-      ctx.beginPath();ctx.rect(ib.x,ib.y,ib.w,ib.h);ctx.clip();
-    }
-    // Then clip to circle
+    if(S.imgBounds){const ib=S.imgBounds;ctx.beginPath();ctx.rect(ib.x,ib.y,ib.w,ib.h);ctx.clip();}
     ctx.beginPath();ctx.arc(spot.x,spot.y,r,0,Math.PI*2);ctx.clip();
     ctx.drawImage(scCvs,0,0,DW,DH);
     ctx.restore();
-    // Spotlight ring — terracotta whisper
     ctx.strokeStyle='rgba(201,100,66,.22)';ctx.lineWidth=1.5;
     ctx.beginPath();ctx.arc(spot.x,spot.y,r,0,Math.PI*2);ctx.stroke();
   }
 
-  // Scene transition crossfade (time-based, ~500ms regardless of fps)
   if(S.transition.active){
     const elapsed=performance.now()-S.transition.start;
     const a=1-elapsed/S.transition.duration;
@@ -538,77 +1141,113 @@ function processFrame(){
     else{ctx.save();ctx.globalAlpha=a;ctx.drawImage(S.transition.from,0,0);ctx.globalAlpha=1;ctx.restore();}
   }
 
-  // PIP
   if(pip.style.display!=='none'&&vid){
     pipCtx.save();if(S.mirrorX){pipCtx.translate(pipW,0);pipCtx.scale(-1,1);}
     pipCtx.drawImage(vid,0,0,pipW,pipH);pipCtx.restore();
   }
 
-  // Gesture HUD
-  gh.textContent=m.ex()||'';gh.style.opacity=m.ex()?1:0;
+  const exText = m.ex();
+  gh.textContent = exText || '';
+  gh.style.opacity = exText ? 1 : 0;
+  document.getElementById('he-row').style.display = exText ? 'flex' : 'none';
 
-  // FPS
   fc++;const now=performance.now();if(now-ft>=1000){S.fps=fc;fc=0;ft=now;}
 
-  // Update UI
+  // HUD updates
   document.getElementById('hf').textContent=S.fps;
-  document.getElementById('hm').textContent=`${m.icon} ${m.name}`;
-  document.getElementById('hs').textContent={edges:'墨线',sketch:'素描',dark:'暗调'}[S.style];
-  document.getElementById('hr').textContent=S.radius+' @'+S.camSens+'x';
-  document.getElementById('he').textContent=m.ex()||'';
+  document.getElementById('hm').textContent=`${m.icon} ${t(m.nameKey)}`;
+  document.getElementById('hs').textContent=t({edges:'styleEdges',sketch:'styleSketch',dark:'styleDark'}[S.style]);
+  document.getElementById('hr').textContent=S.radius+' · '+S.camSens+'×';
+  if (exText) document.getElementById('he').textContent = exText.replace(/^🖐\s*/,'');
 
-  // Async MediaPipe hand dispatch
   if(S.mode==='hand'&&fc%10===0)setTimeout(pH,0);
   }catch(e){console.error('Frame error:',e.message);}
   requestAnimationFrame(processFrame);
 }
 
-// ═══════════════════════════════════════════
-// CAMERA
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   Camera
+   ─────────────────────────────────────────────────────────── */
 async function initCam(){
   if(str){str.getTracks().forEach(t=>t.stop());}
   try{str=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});}
   catch(e){str=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
   vid=document.createElement('video');vid.srcObject=str;vid.setAttribute('playsinline','');
   await vid.play();
-  // Use native MacBook camera resolution (e.g. 1280×720), not forced 640×480
   VW=vid.videoWidth;VH=vid.videoHeight;
-  // PIP: maintain camera aspect ratio, max width 160px
   pipW=160;pipH=Math.round(160*VH/VW);
   pip.width=pipW;pip.height=pipH;pip.style.height=pipH+'px';
   if(!wkCvs){wkCvs=document.createElement('canvas');wkCtx=wkCvs.getContext('2d');}
   wkCvs.width=VW;wkCvs.height=VH;
 }
 
-// ═══════════════════════════════════════════
-// START / STOP
-// ═══════════════════════════════════════════
+/* ───────────────────────────────────────────────────────────
+   First-time hint
+   ─────────────────────────────────────────────────────────── */
+function showFirstHint(){
+  if(S.firstHintShown) return;
+  S.firstHintShown=true;
+  const el=document.getElementById('first-hint');
+  setTimeout(()=>el.classList.add('show'), 900);
+  setTimeout(()=>el.classList.remove('show'), 6000);
+}
+function noteFirstMove(dx,dy){
+  S.firstMoveDistance += Math.hypot(dx,dy);
+  if(S.firstMoveDistance > 80){
+    const el=document.getElementById('first-hint');
+    el.classList.remove('show');
+  }
+}
+
+/* ───────────────────────────────────────────────────────────
+   Start / Stop / Mode switch
+   ─────────────────────────────────────────────────────────── */
 async function start(){
+  // Leaving animation
+  const ss = document.getElementById('start-screen');
+  ss.classList.add('leaving');
+  await new Promise(r=>setTimeout(r,300));
+  ss.style.display='none';
+
   DW=window.innerWidth;DH=window.innerHeight;
   D.width=DW;D.height=DH;
-  // Preload Grok images
-  try{await preloadImages();}catch(e){console.warn('Image preload:',e.message);}
   initScene();drawScene(0);target=scCvs;genHidden();
-  try{await initCam();}catch(e){console.warn('Camera unavailable:',e.message);}
+
+  if(M[S.mode].needCam){
+    try{ await initCam(); }
+    catch(e){
+      console.warn('Camera unavailable:',e.message);
+      showError();
+      return;
+    }
+  }
   M[S.mode].init();
   S.running=true;S.smooth.x=S.smooth.y=-1;
-  pip.style.display='block';
-  document.getElementById('start-screen').style.display='none';
-  document.getElementById('hsc').textContent=sceneNames[S.scene];
-  sceneNav.style.opacity='1';
+  if(M[S.mode].needCam) pip.style.display='block';
+  document.getElementById('hsc').textContent=sceneNameOf(S.scene);
+  sceneNav.classList.add('show');
+  setTimeout(()=>sceneNav.classList.remove('show'), 2200);
+  showFirstHint();
   requestAnimationFrame(processFrame);
 }
 function stop(){
   S.running=false;M[S.mode].cln();S.transition.active=false;
   if(str){str.getTracks().forEach(t=>t.stop());str=null;}
   pip.style.display='none';
-  document.getElementById('start-screen').style.display='flex';
+  document.getElementById('first-hint').classList.remove('show');
+  S.firstHintShown=false;S.firstMoveDistance=0;
+  const ss=document.getElementById('start-screen');
+  // Reset so child entry animations replay on the way back in
+  ss.classList.remove('leaving','ready');
+  ss.style.display='flex';
+  void ss.offsetWidth; // force reflow to restart animations
+  requestAnimationFrame(()=>ss.classList.add('ready'));
 }
 function wM(name){
   if(S.running){
     M[S.mode].cln();S.mode=name;S.smooth.x=S.smooth.y=-1;
     M[name].init();
+    pip.style.display = M[name].needCam ? 'block' : 'none';
   }else{S.mode=name;}
   document.querySelectorAll('.mode-card').forEach(c=>{
     const on=c.dataset.mode===name;
@@ -617,10 +1256,20 @@ function wM(name){
   });
 }
 
-// ═══════════════════════════════════════════
-// KEYBOARD & MOUSE
-// ═══════════════════════════════════════════
+function showError(){
+  document.getElementById('error-screen').classList.add('show');
+}
+function hideError(){
+  document.getElementById('error-screen').classList.remove('show');
+}
+
+/* ───────────────────────────────────────────────────────────
+   Keyboard & pointer
+   ─────────────────────────────────────────────────────────── */
 document.addEventListener('keydown',e=>{
+  if(e.key === 'Shift' && e.shiftKey && e.code === 'KeyD'){
+    // shift+D toggles debug (handled below in keyup logic) — placeholder
+  }
   if(!S.running)return;
   switch(e.key.toLowerCase()){
     case'q':case'escape':stop();break;
@@ -637,12 +1286,24 @@ document.addEventListener('keydown',e=>{
     case']':S.camSens=parseFloat(Math.min(5.0,S.camSens+0.2).toFixed(1));break;
     case'r':S.smooth.x=S.smooth.y=-1;break;
     case'x':S.mirrorX=!S.mirrorX;break;
+    case'd':if(e.shiftKey){
+      S.debug=!S.debug;
+      document.getElementById('ui').classList.toggle('debug',S.debug);
+    }break;
   }
 });
-// Mouse/trackpad tracking — spotlight follows cursor
-D.addEventListener('mousemove',e=>{S.mouseX=e.clientX;S.mouseY=e.clientY;});
-D.addEventListener('touchmove',e=>{e.preventDefault();S.mouseX=e.touches[0].clientX;S.mouseY=e.touches[0].clientY;},{passive:false});
-// Wheel adjusts spotlight radius (matches README docs)
+D.addEventListener('mousemove',e=>{
+  const dx=e.clientX-S.mouseX, dy=e.clientY-S.mouseY;
+  S.mouseX=e.clientX;S.mouseY=e.clientY;
+  if(S.running) noteFirstMove(dx,dy);
+});
+D.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const x=e.touches[0].clientX, y=e.touches[0].clientY;
+  const dx=x-S.mouseX, dy=y-S.mouseY;
+  S.mouseX=x;S.mouseY=y;
+  if(S.running) noteFirstMove(dx,dy);
+},{passive:false});
 D.addEventListener('wheel',e=>{
   if(!S.running)return;
   e.preventDefault();
@@ -650,30 +1311,69 @@ D.addEventListener('wheel',e=>{
   S.radius=Math.max(15,Math.min(350,S.radius+step));
 },{passive:false});
 
-// ═══════════════════════════════════════════
-// MODE CARDS — 3 modes
-// ═══════════════════════════════════════════
+/* CTA button ripple position */
+const btnStart = document.getElementById('btn-start');
+btnStart.addEventListener('mousemove',e=>{
+  const r=btnStart.getBoundingClientRect();
+  btnStart.style.setProperty('--mx', `${e.clientX-r.left}px`);
+  btnStart.style.setProperty('--my', `${e.clientY-r.top}px`);
+});
+
+/* ───────────────────────────────────────────────────────────
+   Mode card builder
+   ─────────────────────────────────────────────────────────── */
 const mg=document.getElementById('mg');
-function makeCard(k){
-  const m=M[k];const c=document.createElement('button');
-  c.type='button';
-  c.className='mode-card'+(k===S.mode?' active':'');
-  c.dataset.mode=k;
-  c.setAttribute('aria-pressed',k===S.mode?'true':'false');
-  c.setAttribute('aria-label',m.name);
-  c.innerHTML='<span class="icon">'+m.icon+'</span><span class="name">'+m.name+'</span><span class="req">'+(m.req||'')+'</span>';
-  c.addEventListener('click',()=>wM(k));
-  return c;
+function rebuildModeCards(){
+  mg.innerHTML='';
+  ['flashlight','hand','mouse'].forEach(k=>{
+    const m=M[k];const c=document.createElement('button');
+    c.type='button';
+    c.className='mode-card'+(k===S.mode?' active':'');
+    c.dataset.mode=k;
+    c.setAttribute('aria-pressed',k===S.mode?'true':'false');
+    c.setAttribute('aria-label',t(m.nameKey));
+    const req = m.needCam ? '📷' : '—';
+    c.innerHTML=`<span class="icon">${m.icon}</span><span class="name">${t(m.nameKey)}</span><span class="req">${req}</span>`;
+    c.addEventListener('click',()=>wM(k));
+    mg.appendChild(c);
+  });
 }
-const lb=document.createElement('div');lb.className='cat-label';lb.textContent='📷 摄像头';mg.appendChild(lb);
-for(const k of['flashlight','hand'])mg.appendChild(makeCard(k));
-const mLb=document.createElement('div');mLb.className='cat-label';mLb.textContent='🖥 无需摄像头';mg.appendChild(mLb);
-mg.appendChild(makeCard('mouse'));
+
+/* ───────────────────────────────────────────────────────────
+   Bootstrap
+   ─────────────────────────────────────────────────────────── */
 document.getElementById('btn-start').addEventListener('click',start);
+document.getElementById('err-mouse').addEventListener('click',()=>{
+  S.mode='mouse';
+  hideError();
+  start();
+});
+document.getElementById('err-retry').addEventListener('click',()=>{
+  hideError();
+  start();
+});
+document.getElementById('lang-switch').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-lang]');
+  if(b) setLang(b.dataset.lang);
+});
 window.addEventListener('resize',()=>{
   if(!S.running)return;
   DW=window.innerWidth;DH=window.innerHeight;D.width=DW;D.height=DH;
   initScene();drawScene(performance.now()/1000);target=scCvs;genHidden();
+});
+
+/* Initial translations + preload + reveal */
+applyTranslations();
+preloadImages().then(()=>{
+  // Hide loading, reveal start screen
+  document.getElementById('loading').classList.add('gone');
+  const ss=document.getElementById('start-screen');
+  ss.classList.add('ready');
+  setTimeout(()=>{ document.getElementById('loading').style.display='none'; }, 700);
+}).catch(e=>{
+  console.warn('Preload error:', e);
+  document.getElementById('loading').classList.add('gone');
+  document.getElementById('start-screen').classList.add('ready');
 });
 </script>
 </body>

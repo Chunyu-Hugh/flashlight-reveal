@@ -32,6 +32,7 @@ Control a spotlight with your webcam flashlight or hand gestures to reveal a liv
 | 🎬 **场景动画** | 飞鸟、飘雪、花瓣、萤火虫、流星……仅光圈内可见 |
 | 🎨 **3 风格** | 墨线（Sobel）、素描、暗调 |
 | 📐 **灵敏度** | `[ ]` 键调节摄像头映射范围 |
+| 🌐 **三语界面** | 简体 · 繁體 · English，自动检测浏览器语言 |
 
 | | |
 |---|---|
@@ -42,6 +43,7 @@ Control a spotlight with your webcam flashlight or hand gestures to reveal a liv
 | 🎬 **Animations** | Birds, snowflakes, petals, fireflies, shooting stars — inside spotlight only |
 | 🎨 **3 Styles** | Ink edges (Sobel), sketch, dark |
 | 📐 **Sensitivity** | `[ ]` keys to adjust camera-to-canvas mapping |
+| 🌐 **3 Languages** | 简 · 繁 · English, auto-detected from browser |
 
 ## 🛠 技术栈 · Tech Stack
 
@@ -93,7 +95,7 @@ tailscale serve --bg 8888
 
 ```
 web/
-├── index.html        # 主应用 (~650 行，零构建)
+├── index.html        # 主应用 (~1370 行，零构建，含 i18n 字典)
 └── scenes/           # 5 张 AI 生成场景图
     ├── shanshui.png
     ├── bamboo.png
@@ -233,9 +235,9 @@ Lets a curator drive position/radius/scene live from a TouchDesigner patch — w
 
 ## 🤝 加入 · Get involved
 
-骨架已经写好（一个 660 行的 `web/index.html`、5 张场景、3 种交互模式跑起来了），但**真正有意思的部分需要更多人一起玩**——上面那张 Roadmap 表里任何一行，只要有人想做，我都可以陪着 review。
+骨架已经写好（一个 ~1370 行的 `web/index.html`、5 张场景、3 种交互模式、3 种语言界面跑起来了），但**真正有意思的部分需要更多人一起玩**——上面那张 Roadmap 表里任何一行，只要有人想做，我都可以陪着 review。
 
-The skeleton's in place — 660-line `web/index.html`, 5 scenes, 3 working modes — but **the interesting stuff needs more people in the loop**. Any row of the Roadmap above: if someone wants to take it on, I'll review and pair through it.
+The skeleton's in place — ~1370-line `web/index.html`, 5 scenes, 3 working modes, 3-language UI — but **the interesting stuff needs more people in the loop**. Any row of the Roadmap above: if someone wants to take it on, I'll review and pair through it.
 
 ### 不写代码也能贡献 · You don't need to code
 

@@ -23,6 +23,7 @@
 |---|---|
 | 🔦 **手电筒模式** | 用手机闪光灯对准摄像头，最亮点即光圈位置 |
 | ✋ **手势识别** | MediaPipe 手部追踪，手掌张开控制光圈 |
+| 👁 **眼动追踪** | MediaPipe FaceLandmarker + 虹膜几何法 — 用眼睛控制光圈（需先校准；精度有限，详见下文） |
 | 🖱 **鼠标跟随** | 触控板/鼠标滑动画卷，无需摄像头 |
 | 🏔 **5 场景** | 山水、竹林、雪景、花鸟、星空 — AI 生成水墨画 |
 | 🎬 **场景动画** | 飞鸟、飘雪、花瓣、萤火虫、流星……仅光圈内可见 |
@@ -38,6 +39,7 @@
 |---|---|
 | 渲染 | Canvas 2D API |
 | 手势 | [MediaPipe Hands](https://ai.google.dev/edge/mediapipe) (CDN) |
+| 眼动 | [MediaPipe FaceLandmarker (Tasks Vision)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js) — 478 个 landmark 含虹膜 + 自写 3 参数线性回归 |
 | 摄像头 | `getUserMedia` API |
 | 边缘检测 | Sobel 算子（手写 JS 实现） |
 | 字体 | Noto Serif SC / TC + EB Garamond (Google Fonts) |
@@ -71,6 +73,7 @@ tailscale serve --bg 8888
 | `[` `]` | 灵敏度 - / + |
 | + / - 或滚轮 | 光圈大小 |
 | R | 重置平滑 |
+| C | 眼动模式下重新校准 |
 | X | 镜像翻转 |
 | F | 全屏 |
 | Shift + D | 显示 / 隐藏 FPS |
@@ -80,7 +83,7 @@ tailscale serve --bg 8888
 
 ```
 web/
-├── index.html        # 主应用 (~1370 行，零构建，含 i18n 字典)
+├── index.html        # 主应用 (~1770 行，零构建，含 i18n 字典)
 └── scenes/           # 5 张 AI 生成场景图
     ├── shanshui.png
     ├── bamboo.png
@@ -104,6 +107,46 @@ web/
 参见 [DESIGN.md](DESIGN.md)。
 
 品牌色：羊皮纸 `#f5f4ed` · 赤陶 `#c96442` · 墨黑 `#141413`
+
+## 👁 关于眼动追踪
+
+> **TL;DR：浏览器原生方案，精度有限，**进入眼动模式时**会要求你做一次 ~30 秒的 9 点校准**。校准做认真精度就够用；做敷衍光圈会乱跑。
+
+### 用的是什么
+
+| 层 | 做法 |
+|---|---|
+| 人脸 / 虹膜检测 | [MediaPipe FaceLandmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js) — 478 个 landmark（含 10 个虹膜点），通过 jsDelivr CDN 加载，模型从 Google 公开 storage 拉，~3.6MB，首次加载缓存后离线复用 |
+| 视线特征 | 虹膜中心相对眼角中点的归一化偏移 `(dx, dy)`，对头部姿态相对鲁棒（这是核心妙处） |
+| 屏幕坐标映射 | 9 个校准点 × 每点 3 次点击 → 27 组 `(dx, dy, 屏幕 x, y)` 训练样本 → 闭式 3×3 最小二乘拟合两个线性模型（screen_x = a + b·dx + c·dy，y 同理） |
+| 实时推理 | 每隔一帧跑一次 FaceLandmarker（约 30Hz），指数平滑过滤抖动 |
+
+**无 license key、无第三方 SDK、无数据外传、无 WASM SharedArrayBuffer 折腾**。代码全在 [`web/index.html`](web/index.html) 里搜 `enterGaze` / `irisFeatures` / `fitLinear` / `predictGaze` 这几个函数。
+
+### 精度老实话
+
+在**控制条件下**（光线均匀、坐姿稳定、距屏 ~50–70cm）：典型误差 **~3–5°** 视角，相当于光圈中心在屏幕上下漂 100–200 像素。默认光圈半径 140px 是够宽容的。
+
+会变差的场景：
+- **头一动就崩** — 我们没建模头部姿态，校准时是什么坐姿之后就别动
+- **逆光 / 强阴影** — FaceLandmarker 测不准虹膜
+- **校准时随便点** — 每次点击都会"录像"你眼睛位置；你没盯着圆点，就是教模型瞎对应
+
+### 怎么校准
+
+1. 找一个光线均匀的地方坐下，**笔记本屏幕正对脸**
+2. 进入眼动模式，等模型加载（首次几秒）
+3. 出现 9 个圆点 → **依次盯着每个圆点点击 3 次**，盯实再点
+4. 27 次点完，自动拟合 → 校准完成 → 光圈开始跟眼睛
+5. 觉得不准了，**按 `C` 重新校准**（最常见）
+
+### 我没做的事（未来可能升级）
+
+- **加入头部姿态**（MediaPipe 还能给 `facialTransformationMatrixes`）— 头一动也不崩
+- **L2CS-Net / GazeML via ONNX Runtime Web** — 深度模型，~3° 精度但需要 WebGPU + 25MB+ 模型文件 + 视线→屏幕映射仍要校准。见路线图
+- **更长的校准** — 15 点 + 头部小幅移动样本，对头部姿态偏移更鲁棒
+
+想 PR 这些？开 issue 聊。
 
 ## 🔮 路线图
 

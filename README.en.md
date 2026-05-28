@@ -23,6 +23,7 @@ Control a spotlight with your webcam flashlight or hand gestures to reveal a liv
 |---|---|
 | 🔦 **Flashlight** | Point a phone flashlight at the webcam; brightest spot becomes the spotlight |
 | ✋ **Hand Gesture** | MediaPipe hand tracking; an open palm drives the spotlight |
+| 👁 **Eye Gaze** | MediaPipe FaceLandmarker + iris geometry — drive the spotlight with your eyes (requires calibration; accuracy is limited, see below) |
 | 🖱 **Mouse** | Trackpad / cursor follows naturally, no camera needed |
 | 🏔 **5 Scenes** | Mountains, bamboo, snow, blossoms, starry sky — AI-generated |
 | 🎬 **Animations** | Birds, snowflakes, petals, fireflies, shooting stars — visible only inside the spotlight |
@@ -38,6 +39,7 @@ Control a spotlight with your webcam flashlight or hand gestures to reveal a liv
 |---|---|
 | Rendering | Canvas 2D API |
 | Gesture | [MediaPipe Hands](https://ai.google.dev/edge/mediapipe) (via CDN) |
+| Eye gaze | [MediaPipe FaceLandmarker (Tasks Vision)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js) — 478 landmarks with iris + hand-rolled 3-parameter linear regression |
 | Camera | `getUserMedia` API |
 | Edge detection | Sobel operator (hand-rolled in JS) |
 | Fonts | Noto Serif SC / TC + EB Garamond (Google Fonts) |
@@ -71,6 +73,7 @@ tailscale serve --bg 8888
 | `[` `]` | Sensitivity − / + |
 | + / − or wheel | Spotlight radius |
 | R | Reset smoothing |
+| C | Recalibrate gaze (in Eye Gaze mode) |
 | X | Mirror flip |
 | F | Fullscreen |
 | Shift + D | Toggle FPS readout |
@@ -80,7 +83,7 @@ tailscale serve --bg 8888
 
 ```
 web/
-├── index.html        # Main app (~1370 lines, zero build, includes i18n dict)
+├── index.html        # Main app (~1770 lines, zero build, includes i18n dict)
 └── scenes/           # 5 AI-generated scene images
     ├── shanshui.png
     ├── bamboo.png
@@ -104,6 +107,46 @@ web/
 See [DESIGN.md](DESIGN.md).
 
 Brand colors: parchment `#f5f4ed` · terracotta `#c96442` · ink black `#141413`
+
+## 👁 About Eye Gaze
+
+> **TL;DR: pure-browser approach, accuracy is limited.** Entering Eye Gaze mode prompts you for a ~30-second 9-point calibration. Do it carefully and the precision is usable; do it sloppily and the spotlight wanders.
+
+### What's under the hood
+
+| Layer | How it works |
+|---|---|
+| Face / iris detection | [MediaPipe FaceLandmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js) — 478 landmarks including 10 iris points, loaded via jsDelivr CDN; the model file (~3.6 MB) is fetched once from Google's public storage and then cached |
+| Gaze feature | Iris center offset from the eye-corner midpoint, normalized by eye width → `(dx, dy)`, roughly head-pose invariant (this is the key trick) |
+| Screen mapping | 9 calibration dots × 3 clicks each → 27 `(dx, dy, screen_x, screen_y)` samples → closed-form 3×3 least squares fits two linear models: `screen_x = a + b·dx + c·dy`, same for y |
+| Runtime | FaceLandmarker runs every other frame (~30 Hz), exponentially smoothed to damp jitter |
+
+**No license keys, no third-party SDK, no data leaving your device, no SharedArrayBuffer/COI headache.** All the code lives in [`web/index.html`](web/index.html) — search for `enterGaze`, `irisFeatures`, `fitLinear`, `predictGaze`.
+
+### Honest accuracy
+
+In **controlled conditions** (even lighting, stable head, ~50–70 cm from the screen): roughly **3–5°** of visual angle, which drifts the spotlight center by 100–200 pixels. The default spotlight radius (140 px) absorbs that.
+
+Things that make it worse:
+- **Head movement** — we don't model head pose yet, so changing posture after calibration desyncs everything
+- **Backlight / harsh shadows** — FaceLandmarker mis-locates the iris
+- **Sloppy calibration** — every click captures your *current* eye state. If you're not really looking at the dot, you're teaching the model the wrong association
+
+### Calibration walkthrough
+
+1. Sit in evenly lit place with the **screen squarely in front of your face**
+2. Pick Eye Gaze mode, let the model load (a few seconds the first time)
+3. 9 dots appear → **stare at each one and click it 3 times**, really looking before clicking
+4. After 27 clicks the regression fits → spotlight follows your eyes
+5. Drifting? Press **`C`** to recalibrate (the most common fix)
+
+### What we haven't done yet (future upgrades)
+
+- **Add head pose** (MediaPipe also exposes `facialTransformationMatrixes`) — resilient to head movement
+- **L2CS-Net / GazeML via ONNX Runtime Web** — deep gaze model, ~3° accuracy but needs WebGPU + ~25 MB model + the same screen-mapping calibration. See Roadmap
+- **Denser calibration** — 15 dots with deliberate small head shifts, more robust to posture drift
+
+PRs welcome — open an issue first.
 
 ## 🔮 Roadmap
 

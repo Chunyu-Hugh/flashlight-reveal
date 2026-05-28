@@ -250,6 +250,7 @@ html[lang^="zh"] .tagline{font-style:normal;letter-spacing:.18em;text-indent:.18
 .mode-card:nth-child(1){animation:fade-up .7s .55s var(--easing-out) forwards}
 .mode-card:nth-child(2){animation:fade-up .7s .65s var(--easing-out) forwards}
 .mode-card:nth-child(3){animation:fade-up .7s .75s var(--easing-out) forwards}
+.mode-card:nth-child(4){animation:fade-up .7s .85s var(--easing-out) forwards}
 .mode-card:hover{
   border-color:var(--stone-soft);
   transform:translateY(-2px);
@@ -527,6 +528,71 @@ html[lang^="zh"] #first-hint{letter-spacing:.22em}
     transition-duration:.01ms !important;
   }
 }
+
+/* ──────────────────────────────────────────────────────────
+   GAZE CALIBRATION OVERLAY
+   ────────────────────────────────────────────────────────── */
+#calib{
+  position:fixed;inset:0;z-index:160;display:none;
+  background:rgba(245,244,237,.94);
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+}
+#calib.show{display:block}
+#calib .calib-head{
+  position:absolute;top:9%;left:0;right:0;text-align:center;padding:0 24px;
+  pointer-events:none;
+}
+#calib .calib-title{
+  font-family:var(--serif);font-size:1.7rem;font-weight:600;color:var(--ink);
+  letter-spacing:.02em;
+}
+html[lang^="zh"] #calib .calib-title{letter-spacing:.14em}
+#calib .calib-sub{
+  margin-top:10px;color:var(--stone);font-size:.92rem;line-height:1.6;
+  max-width:440px;margin-left:auto;margin-right:auto;
+  word-break:break-word;
+}
+#calib.error .calib-title{color:var(--clay)}
+#calib.error .calib-sub{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:.8rem;color:var(--ink);background:rgba(201,100,66,.08);
+  padding:10px 14px;border-radius:8px;border:1px solid rgba(201,100,66,.2);
+  max-width:560px;
+}
+#calib-dismiss{
+  margin-top:18px;padding:10px 28px;font-size:.9rem;font-family:var(--serif);
+  pointer-events:auto;cursor:pointer;
+  background:var(--clay);color:var(--ivory);border:none;border-radius:99px;
+  transition:background .2s;
+}
+#calib-dismiss:hover{background:var(--clay-deep,#a84e30)}
+.calib-dot{
+  position:absolute;width:38px;height:38px;border-radius:50%;
+  transform:translate(-50%,-50%);
+  border:2px solid var(--clay);background:rgba(201,100,66,.10);
+  color:var(--clay);font-size:.82rem;font-weight:700;font-family:var(--serif);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 0 0 0 rgba(201,100,66,.35);
+  animation:calib-pulse 1.8s var(--easing-out) infinite;
+  transition:background .2s,transform .15s,box-shadow .3s;
+}
+.calib-dot:hover{transform:translate(-50%,-50%) scale(1.12)}
+.calib-dot:focus-visible{outline:2px solid var(--clay);outline-offset:3px}
+.calib-dot.done{
+  background:var(--clay);color:var(--ivory);border-color:var(--clay);
+  animation:none;box-shadow:none;cursor:default;
+}
+@keyframes calib-pulse{
+  0%{box-shadow:0 0 0 0 rgba(201,100,66,.30)}
+  70%{box-shadow:0 0 0 12px rgba(201,100,66,0)}
+  100%{box-shadow:0 0 0 0 rgba(201,100,66,0)}
+}
+@media (max-width:680px){
+  .calib-dot{width:44px;height:44px;font-size:.9rem}
+  #calib .calib-title{font-size:1.3rem}
+  #calib .calib-sub{font-size:.82rem}
+}
+
 </style>
 </head>
 
@@ -575,6 +641,16 @@ html[lang^="zh"] #first-hint{letter-spacing:.22em}
   </div>
 </div>
 
+<!-- ──────── Gaze calibration overlay ──────── -->
+<div id="calib">
+  <div class="calib-head">
+    <div class="calib-title" id="calib-title">校准眼动</div>
+    <div class="calib-sub" id="calib-sub">依次注视每个圆点并点击，直到点满</div>
+    <button id="calib-dismiss" type="button" style="display:none">切换到鼠标</button>
+  </div>
+  <div id="calib-dots"></div>
+</div>
+
 <!-- ──────── Canvas ──────── -->
 <canvas id="display"></canvas>
 <canvas id="pip"></canvas>
@@ -618,7 +694,9 @@ const I18N = {
     catNoCamera:'无需摄像头',
     modeFlashlight:'手电筒',
     modeHand:'手势识别',
+    modeGaze:'眼动追踪',
     modeMouse:'鼠标跟随',
+    catHandsFree:'解放双手',
     sceneShanshui:'山水',
     sceneBamboo:'竹林',
     sceneSnow:'雪景',
@@ -642,6 +720,14 @@ const I18N = {
     firstHintMouse:'移动鼠标 · 揭示画卷',
     firstHintFlash:'用手电对准摄像头 · 揭示画卷',
     firstHintHand:'张开手掌移动 · 揭示画卷',
+    firstHintGaze:'用眼睛看向画卷 · 揭示',
+    calibTitle:'校准眼动',
+    calibSub:'依次注视每个圆点并点击，点满即可。请确保面部光线充足。',
+    calibDone:'校准完成',
+    gazeCalibrating:'校准中',
+    gazeLoading:'正在加载眼动模型',
+    gazeLoadingSub:'首次需从网络下载人脸模型（约几 MB），请稍候……若长时间无响应，可能是网络无法访问模型源。',
+    gazeFailHint:'眼动启动失败，已切换到鼠标',
     credit:'墨卷 · 开放的水墨实验',
     hintHTML:'<kbd>M</kbd> 切换模式<span class="sep">·</span><kbd>← →</kbd> 切换场景<span class="sep">·</span><kbd>1 2 3</kbd> 风格<br><kbd>滚轮</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 灵敏度<span class="sep">·</span><kbd>X</kbd> 镜像<span class="sep">·</span><kbd>F</kbd> 全屏<span class="sep">·</span><kbd>Q</kbd> 退出',
   },
@@ -654,7 +740,9 @@ const I18N = {
     catNoCamera:'無需攝像頭',
     modeFlashlight:'手電筒',
     modeHand:'手勢辨識',
+    modeGaze:'眼動追蹤',
     modeMouse:'滑鼠跟隨',
+    catHandsFree:'解放雙手',
     sceneShanshui:'山水',
     sceneBamboo:'竹林',
     sceneSnow:'雪景',
@@ -678,6 +766,14 @@ const I18N = {
     firstHintMouse:'移動滑鼠 · 揭示畫卷',
     firstHintFlash:'用手電對準攝像頭 · 揭示畫卷',
     firstHintHand:'張開手掌移動 · 揭示畫卷',
+    firstHintGaze:'用眼睛看向畫卷 · 揭示',
+    calibTitle:'校準眼動',
+    calibSub:'依次注視每個圓點並點擊，點滿即可。請確保面部光線充足。',
+    calibDone:'校準完成',
+    gazeCalibrating:'校準中',
+    gazeLoading:'正在載入眼動模型',
+    gazeLoadingSub:'首次需從網路下載人臉模型（約數 MB），請稍候……若長時間無回應，可能是網路無法存取模型來源。',
+    gazeFailHint:'眼動啟動失敗，已切換到滑鼠',
     credit:'墨卷 · 開放的水墨實驗',
     hintHTML:'<kbd>M</kbd> 切換模式<span class="sep">·</span><kbd>← →</kbd> 切換場景<span class="sep">·</span><kbd>1 2 3</kbd> 風格<br><kbd>滾輪</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 靈敏度<span class="sep">·</span><kbd>X</kbd> 鏡像<span class="sep">·</span><kbd>F</kbd> 全螢幕<span class="sep">·</span><kbd>Q</kbd> 退出',
   },
@@ -690,7 +786,9 @@ const I18N = {
     catNoCamera:'No camera',
     modeFlashlight:'Flashlight',
     modeHand:'Hand',
+    modeGaze:'Eye Gaze',
     modeMouse:'Mouse',
+    catHandsFree:'Hands-free',
     sceneShanshui:'Mountains',
     sceneBamboo:'Bamboo',
     sceneSnow:'Snow',
@@ -714,6 +812,14 @@ const I18N = {
     firstHintMouse:'Move the cursor to reveal',
     firstHintFlash:'Aim a flashlight at the camera to reveal',
     firstHintHand:'Open your palm and move to reveal',
+    firstHintGaze:'Look around the scroll to reveal',
+    calibTitle:'Calibrate your gaze',
+    calibSub:'Look at each dot and click it until it fills. Make sure your face is well lit.',
+    calibDone:'Calibrated',
+    gazeCalibrating:'Calibrating',
+    gazeLoading:'Loading gaze model',
+    gazeLoadingSub:'First run downloads a face model (a few MB). Please wait… If it never responds, the model host may be unreachable from your network.',
+    gazeFailHint:'Gaze failed to start — switched to mouse',
     credit:'An open ink-painting experiment',
     hintHTML:'<kbd>M</kbd> mode<span class="sep">·</span><kbd>← →</kbd> scene<span class="sep">·</span><kbd>1 2 3</kbd> style<br><kbd>wheel</kbd> radius<span class="sep">·</span><kbd>[ ]</kbd> sensitivity<span class="sep">·</span><kbd>X</kbd> mirror<span class="sep">·</span><kbd>F</kbd> fullscreen<span class="sep">·</span><kbd>Q</kbd> quit',
   },
@@ -776,6 +882,7 @@ const S={
   hlm:null,gesture:'none',hpos:null,lastHx:0,lastHy:0,
   transition:{active:false,from:null,start:0,duration:500},
   firstHintShown:false,firstMoveDistance:0,debug:false,
+  gazePos:null,gazeSmooth:null,gazeReady:false,
 };
 const D=document.getElementById('display'),ctx=D.getContext('2d'),
   pip=document.getElementById('pip'),pipCtx=pip.getContext('2d'),
@@ -1085,12 +1192,249 @@ const M={
     },
     needCam:true,
   },
+  gaze:{
+    icon:'👁',nameKey:'modeGaze',
+    init(){ enterGaze(); },
+    spot(){
+      if(!S.gazeReady) return null;
+      const p = predictGaze();
+      return p ? {x:p.x, y:p.y, radius:S.radius} : null;
+    },
+    cln(){ exitGaze(); },
+    ex(){ return S.gazeReady ? '' : `👁 ${t('gazeCalibrating')}`; },
+    needCam:true, // app provides the camera; we feed frames to FaceLandmarker
+  },
   mouse:{
     icon:'🖱',nameKey:'modeMouse',
     init(){},spot(id){return{x:S.mouseX,y:S.mouseY,radius:S.radius};},
     cln(){},ex:()=>'',needCam:false,
   },
 };
+
+/* ───────────────────────────────────────────────────────────
+   Eye gaze — MediaPipe FaceLandmarker (478 landmarks + iris)
+   + per-user click calibration → 3-param linear regression
+
+   How it works:
+   1. FaceLandmarker (Tasks API) gives iris centers + eye-corner landmarks each frame
+   2. Normalize iris offset by eye width → roughly head-pose-invariant (dx, dy) feature
+   3. During calibration the user looks at 9 dots × 3 clicks each. Each click pairs
+      (avgDx, avgDy) with the dot's screen position
+   4. Fit two linear models — screen_x = a + b·dx + c·dy, similarly y — by closed-form
+      3×3 least squares
+   5. At runtime, predict (x,y) from current (dx,dy), exponential-smooth, drive spotlight
+   ─────────────────────────────────────────────────────────── */
+let faceLandmarker=null, flLoading=null;
+let gazeFit=null;          // {x:[a,b,c], y:[a,b,c]} after calibration
+let calibSamples=[];       // [{dx,dy,tx,ty}, ...] collected during calibration
+
+function loadFaceLandmarker(){
+  if(faceLandmarker) return Promise.resolve();
+  if(flLoading) return flLoading;
+  flLoading = (async()=>{
+    const mod = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs');
+    const { FaceLandmarker, FilesetResolver } = mod;
+    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm');
+    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions:{
+        modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+        delegate:'GPU',
+      },
+      runningMode:'VIDEO',
+      numFaces:1,
+      outputFacialTransformationMatrixes:false,
+    });
+  })();
+  return flLoading;
+}
+
+// MediaPipe FaceMesh 478-landmark indices (refineLandmarks gives iris):
+//   Right eye outer corner: 33, inner corner: 133, iris center: 468
+//   Left  eye outer corner: 263, inner corner: 362, iris center: 473
+function irisFeatures(lm){
+  const ro=lm[33], ri=lm[133], rIris=lm[468];
+  const lo=lm[263], li=lm[362], lIris=lm[473];
+  if(!ro||!ri||!rIris||!lo||!li||!lIris) return null;
+  const rEx=(ro.x+ri.x)/2, rEy=(ro.y+ri.y)/2;
+  const lEx=(lo.x+li.x)/2, lEy=(lo.y+li.y)/2;
+  const rEw=Math.hypot(ro.x-ri.x, ro.y-ri.y)||1e-6;
+  const lEw=Math.hypot(lo.x-li.x, lo.y-li.y)||1e-6;
+  const rdx=(rIris.x-rEx)/rEw, rdy=(rIris.y-rEy)/rEw;
+  const ldx=(lIris.x-lEx)/lEw, ldy=(lIris.y-lEy)/lEw;
+  return { dx:(rdx+ldx)/2, dy:(rdy+ldy)/2 };
+}
+
+// 3×3 least-squares: solve y = a + b·x1 + c·x2 via normal equations + cofactor invert
+function fitLinear(samples, getY){
+  let n=0, Sx=0, Sy=0, Sxx=0, Syy=0, Sxy=0;
+  let Sz=0, Sxz=0, Syz=0;
+  for(const s of samples){
+    const x=s.dx, y=s.dy, z=getY(s);
+    n++; Sx+=x; Sy+=y; Sxx+=x*x; Syy+=y*y; Sxy+=x*y;
+    Sz+=z; Sxz+=x*z; Syz+=y*z;
+  }
+  // Symmetric 3x3 normal matrix M = [[n,Sx,Sy],[Sx,Sxx,Sxy],[Sy,Sxy,Syy]], rhs r = [Sz,Sxz,Syz]
+  const C11=Sxx*Syy - Sxy*Sxy;
+  const C12=-(Sx*Syy - Sxy*Sy);
+  const C13=Sx*Sxy - Sxx*Sy;
+  const det=n*C11 + Sx*C12 + Sy*C13;
+  if(Math.abs(det)<1e-9) return null;
+  const C22=n*Syy - Sy*Sy;
+  const C23=-(n*Sxy - Sx*Sy);
+  const C33=n*Sxx - Sx*Sx;
+  const inv=1/det;
+  const m00=C11*inv, m01=C12*inv, m02=C13*inv;
+  const m10=C12*inv, m11=C22*inv, m12=C23*inv;
+  const m20=C13*inv, m21=C23*inv, m22=C33*inv;
+  return [
+    m00*Sz + m01*Sxz + m02*Syz,
+    m10*Sz + m11*Sxz + m12*Syz,
+    m20*Sz + m21*Sxz + m22*Syz,
+  ];
+}
+
+function showGazeLoading(){
+  const cal=document.getElementById('calib');
+  cal.classList.remove('error');
+  document.getElementById('calib-dismiss').style.display='none';
+  document.getElementById('calib-dots').innerHTML='';
+  document.getElementById('calib-title').textContent=t('gazeLoading');
+  document.getElementById('calib-sub').textContent=t('gazeLoadingSub');
+  cal.classList.add('show');
+}
+
+async function enterGaze(){
+  S.gazeReady=false; S.gazePos=null; S.gazeSmooth=null;
+  gazeFit=null; calibSamples=[];
+  showGazeLoading();
+  try{
+    await loadFaceLandmarker();
+    if(S.mode!=='gaze'){ hideCalibration(); return; }
+    // Camera was set up by start() because gaze.needCam=true. Wait briefly if not ready yet.
+    for(let i=0;i<20 && (!vid || vid.readyState<2); i++){ await new Promise(r=>setTimeout(r,100)); }
+    if(S.mode!=='gaze'){ hideCalibration(); return; }
+    startCalibration();
+  }catch(e){
+    console.error('[gaze] init failed:', e);
+    gazeFallback(e);
+  }
+}
+
+function exitGaze(){
+  S.gazeReady=false; S.gazePos=null; gazeFit=null; calibSamples=[];
+  hideCalibration();
+  // Keep faceLandmarker cached across mode switches to avoid re-downloading model
+}
+
+function gazeFallback(err){
+  S.gazeReady=false; S.gazePos=null;
+  const cal=document.getElementById('calib');
+  document.getElementById('calib-dots').innerHTML='';
+  cal.classList.add('error','show');
+  document.getElementById('calib-title').textContent=t('gazeFailHint');
+  let detail = err ? String(err.message||err) : '';
+  if(err && err.stack){
+    const frame = err.stack.split('\n').find(l=>l.indexOf('http')>=0);
+    if(frame) detail += '\n' + frame.trim();
+  }
+  document.getElementById('calib-sub').style.whiteSpace='pre-wrap';
+  document.getElementById('calib-sub').textContent = detail;
+  const btn=document.getElementById('calib-dismiss');
+  btn.textContent=t('errMouse');
+  btn.style.display='';
+}
+
+/* ── Gaze calibration ── */
+const CALIB_POINTS=[[15,18],[50,18],[85,18],[15,50],[50,50],[85,50],[15,82],[50,82],[85,82]];
+const CLICKS_PER_DOT=3;
+function startCalibration(){
+  S.gazeReady=false;
+  gazeFit=null; calibSamples=[];
+  const cal=document.getElementById('calib');
+  cal.classList.remove('error');
+  document.getElementById('calib-dismiss').style.display='none';
+  const layer=document.getElementById('calib-dots');
+  layer.innerHTML='';
+  document.getElementById('calib-title').textContent=t('calibTitle');
+  document.getElementById('calib-sub').textContent=t('calibSub');
+  let remaining=CALIB_POINTS.length;
+  CALIB_POINTS.forEach(([px,py])=>{
+    const d=document.createElement('button');
+    d.type='button';d.className='calib-dot';
+    d.style.left=px+'%';d.style.top=py+'%';
+    d.textContent=CLICKS_PER_DOT;
+    let clicks=0;
+    d.addEventListener('click',()=>{
+      // On click: take a fresh face reading and pair iris-features with this dot's screen pos
+      if(faceLandmarker && vid && vid.readyState>=2){
+        try{
+          const res = faceLandmarker.detectForVideo(vid, performance.now());
+          const lm = res && res.faceLandmarks && res.faceLandmarks[0];
+          const feat = lm && irisFeatures(lm);
+          if(feat){
+            calibSamples.push({
+              dx:feat.dx, dy:feat.dy,
+              tx:window.innerWidth*px/100,
+              ty:window.innerHeight*py/100,
+            });
+          }
+        }catch(e){ console.warn('[gaze] capture on click failed:',e); }
+      }
+      clicks++;
+      if(clicks>=CLICKS_PER_DOT){
+        d.classList.add('done');d.textContent='✓';d.disabled=true;
+        if(--remaining<=0) finishCalibration();
+      } else {
+        d.textContent=CLICKS_PER_DOT-clicks;
+      }
+    });
+    layer.appendChild(d);
+  });
+  cal.classList.add('show');
+}
+
+function finishCalibration(){
+  if(calibSamples.length < 4){
+    gazeFallback(new Error('Not enough calibration samples — face not detected during clicks. Improve lighting and recalibrate.'));
+    return;
+  }
+  const bx = fitLinear(calibSamples, s=>s.tx);
+  const by = fitLinear(calibSamples, s=>s.ty);
+  if(!bx || !by){
+    gazeFallback(new Error('Calibration regression failed (singular matrix). Try recalibrating with slight head/eye variation between clicks.'));
+    return;
+  }
+  gazeFit = { x:bx, y:by };
+  S.gazeReady=true;
+  const cal=document.getElementById('calib');
+  document.getElementById('calib-title').textContent=t('calibDone');
+  document.getElementById('calib-sub').textContent='';
+  setTimeout(()=>{ cal.classList.remove('show'); flashHint(t('firstHintGaze')); },700);
+}
+
+// Called from M.gaze.spot() each render frame
+let _gazeFrame=0;
+function predictGaze(){
+  if(!gazeFit || !faceLandmarker || !vid || vid.readyState<2) return null;
+  // Throttle FaceLandmarker to every other render frame — it dominates per-frame cost
+  if((++_gazeFrame & 1) === 0 && S.gazeSmooth){
+    return { x:S.gazeSmooth.x, y:S.gazeSmooth.y };
+  }
+  let feat=null;
+  try{
+    const res = faceLandmarker.detectForVideo(vid, performance.now());
+    const lm = res && res.faceLandmarks && res.faceLandmarks[0];
+    feat = lm && irisFeatures(lm);
+  }catch(e){ /* drop the frame */ }
+  if(!feat) return S.gazeSmooth ? { x:S.gazeSmooth.x, y:S.gazeSmooth.y } : null;
+  const px = gazeFit.x[0] + gazeFit.x[1]*feat.dx + gazeFit.x[2]*feat.dy;
+  const py = gazeFit.y[0] + gazeFit.y[1]*feat.dx + gazeFit.y[2]*feat.dy;
+  const a = 0.30;
+  if(!S.gazeSmooth) S.gazeSmooth={x:px,y:py};
+  else{ S.gazeSmooth.x=a*px+(1-a)*S.gazeSmooth.x; S.gazeSmooth.y=a*py+(1-a)*S.gazeSmooth.y; }
+  return { x:S.gazeSmooth.x, y:S.gazeSmooth.y };
+}
+function hideCalibration(){ document.getElementById('calib').classList.remove('show'); }
 
 /* ───────────────────────────────────────────────────────────
    Scene change with crossfade
@@ -1198,10 +1542,18 @@ async function initCam(){
 const FIRST_HINT_KEYS = {
   flashlight: 'firstHintFlash',
   hand: 'firstHintHand',
+  gaze: 'firstHintGaze',
   mouse: 'firstHintMouse',
 };
 function firstHintText(){
   return t(FIRST_HINT_KEYS[S.mode] || 'firstHintMouse');
+}
+function flashHint(text, dur=2800){
+  const fh=document.getElementById('first-hint');
+  fh.textContent=text;
+  fh.classList.add('show');
+  clearTimeout(flashHint._t);
+  flashHint._t=setTimeout(()=>fh.classList.remove('show'), dur);
 }
 function showFirstHint(){
   if(S.firstHintShown) return;
@@ -1263,18 +1615,20 @@ function stop(){
   void ss.offsetWidth; // force reflow to restart animations
   requestAnimationFrame(()=>ss.classList.add('ready'));
 }
-function wM(name){
+async function wM(name){
   if(S.running){
     M[S.mode].cln();S.mode=name;S.smooth.x=S.smooth.y=-1;
+    // A camera mode may need the app stream that gaze mode released — re-init it.
+    if(M[name].needCam && !str){
+      try{ await initCam(); }
+      catch(e){ console.warn('Camera reinit failed:',e.message); }
+    }
+    if(S.mode!==name) return; // user switched again while the camera was initializing
     M[name].init();
     // Flash a per-mode hint so the user knows how to interact in the new mode
-    const fh = document.getElementById('first-hint');
-    fh.textContent = firstHintText();
-    fh.classList.add('show');
-    clearTimeout(wM._hintT);
-    wM._hintT = setTimeout(()=>fh.classList.remove('show'), 2800);
+    flashHint(firstHintText());
     S.firstMoveDistance = 0;
-    pip.style.display = M[name].needCam ? 'block' : 'none';
+    pip.style.display = (M[name].needCam && str) ? 'block' : 'none';
   }else{S.mode=name;}
   document.querySelectorAll('.mode-card').forEach(c=>{
     const on=c.dataset.mode===name;
@@ -1312,6 +1666,7 @@ document.addEventListener('keydown',e=>{
     case'[':S.camSens=parseFloat(Math.max(0.5,S.camSens-0.2).toFixed(1));break;
     case']':S.camSens=parseFloat(Math.min(5.0,S.camSens+0.2).toFixed(1));break;
     case'r':S.smooth.x=S.smooth.y=-1;break;
+    case'c':if(S.mode==='gaze'&&faceLandmarker)startCalibration();break;
     case'x':S.mirrorX=!S.mirrorX;break;
     case'd':if(e.shiftKey){
       S.debug=!S.debug;
@@ -1352,7 +1707,7 @@ btnStart.addEventListener('mousemove',e=>{
 const mg=document.getElementById('mg');
 function rebuildModeCards(){
   mg.innerHTML='';
-  ['flashlight','hand','mouse'].forEach(k=>{
+  ['flashlight','hand','gaze','mouse'].forEach(k=>{
     const m=M[k];const c=document.createElement('button');
     c.type='button';
     c.className='mode-card'+(k===S.mode?' active':'');
@@ -1382,6 +1737,12 @@ document.getElementById('err-retry').addEventListener('click',()=>{
 document.getElementById('lang-switch').addEventListener('click',e=>{
   const b=e.target.closest('button[data-lang]');
   if(b) setLang(b.dataset.lang);
+});
+document.getElementById('calib-dismiss').addEventListener('click',()=>{
+  hideCalibration();
+  document.getElementById('calib').classList.remove('error');
+  document.getElementById('calib-dismiss').style.display='none';
+  if(S.running && S.mode==='gaze') wM('mouse');
 });
 window.addEventListener('resize',()=>{
   if(!S.running)return;

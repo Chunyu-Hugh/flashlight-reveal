@@ -694,7 +694,7 @@ const I18N = {
     catNoCamera:'无需摄像头',
     modeFlashlight:'手电筒',
     modeHand:'手势识别',
-    modeGaze:'眼动追踪',
+    modeGaze:'眼动 · 眼镜',
     modeMouse:'鼠标跟随',
     catHandsFree:'解放双手',
     sceneShanshui:'山水',
@@ -722,11 +722,11 @@ const I18N = {
     firstHintHand:'张开手掌移动 · 揭示画卷',
     firstHintGaze:'用眼睛看向画卷 · 揭示',
     calibTitle:'校准眼动',
-    calibSub:'依次注视每个圆点并点击，点满即可。请确保面部光线充足。',
+    calibSub:'戴上贴有 ArUco 标记的眼镜。依次自然地把头/视线转向每个圆点并点击，每点 2 下。',
     calibDone:'校准完成',
     gazeCalibrating:'校准中',
-    gazeLoading:'正在加载眼动模型',
-    gazeLoadingSub:'首次需从网络下载人脸模型（约几 MB），请稍候……若长时间无响应，可能是网络无法访问模型源。',
+    gazeLoading:'正在加载追踪库',
+    gazeLoadingSub:'首次需下载 js-aruco2（约 26KB，纯 JS、无模型、零依赖），通常 1 秒内。',
     gazeFailHint:'眼动启动失败，已切换到鼠标',
     credit:'墨卷 · 开放的水墨实验',
     hintHTML:'<kbd>M</kbd> 切换模式<span class="sep">·</span><kbd>← →</kbd> 切换场景<span class="sep">·</span><kbd>1 2 3</kbd> 风格<br><kbd>滚轮</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 灵敏度<span class="sep">·</span><kbd>X</kbd> 镜像<span class="sep">·</span><kbd>F</kbd> 全屏<span class="sep">·</span><kbd>Q</kbd> 退出',
@@ -740,7 +740,7 @@ const I18N = {
     catNoCamera:'無需攝像頭',
     modeFlashlight:'手電筒',
     modeHand:'手勢辨識',
-    modeGaze:'眼動追蹤',
+    modeGaze:'眼動 · 眼鏡',
     modeMouse:'滑鼠跟隨',
     catHandsFree:'解放雙手',
     sceneShanshui:'山水',
@@ -768,11 +768,11 @@ const I18N = {
     firstHintHand:'張開手掌移動 · 揭示畫卷',
     firstHintGaze:'用眼睛看向畫卷 · 揭示',
     calibTitle:'校準眼動',
-    calibSub:'依次注視每個圓點並點擊，點滿即可。請確保面部光線充足。',
+    calibSub:'戴上貼有 ArUco 標記的眼鏡。依次自然地把頭/視線轉向每個圓點並點擊，每點 2 下。',
     calibDone:'校準完成',
     gazeCalibrating:'校準中',
-    gazeLoading:'正在載入眼動模型',
-    gazeLoadingSub:'首次需從網路下載人臉模型（約數 MB），請稍候……若長時間無回應，可能是網路無法存取模型來源。',
+    gazeLoading:'正在載入追蹤函式庫',
+    gazeLoadingSub:'首次需下載 js-aruco2（約 26KB，純 JS、無模型、零依賴），通常 1 秒內。',
     gazeFailHint:'眼動啟動失敗，已切換到滑鼠',
     credit:'墨卷 · 開放的水墨實驗',
     hintHTML:'<kbd>M</kbd> 切換模式<span class="sep">·</span><kbd>← →</kbd> 切換場景<span class="sep">·</span><kbd>1 2 3</kbd> 風格<br><kbd>滾輪</kbd> 光圈<span class="sep">·</span><kbd>[ ]</kbd> 靈敏度<span class="sep">·</span><kbd>X</kbd> 鏡像<span class="sep">·</span><kbd>F</kbd> 全螢幕<span class="sep">·</span><kbd>Q</kbd> 退出',
@@ -786,7 +786,7 @@ const I18N = {
     catNoCamera:'No camera',
     modeFlashlight:'Flashlight',
     modeHand:'Hand',
-    modeGaze:'Eye Gaze',
+    modeGaze:'Gaze · Glasses',
     modeMouse:'Mouse',
     catHandsFree:'Hands-free',
     sceneShanshui:'Mountains',
@@ -814,11 +814,11 @@ const I18N = {
     firstHintHand:'Open your palm and move to reveal',
     firstHintGaze:'Look around the scroll to reveal',
     calibTitle:'Calibrate your gaze',
-    calibSub:'Look at each dot and click it until it fills. Make sure your face is well lit.',
+    calibSub:'Wear glasses with the ArUco marker attached. Naturally turn your head/gaze toward each dot and click — 2 clicks per dot.',
     calibDone:'Calibrated',
     gazeCalibrating:'Calibrating',
-    gazeLoading:'Loading gaze model',
-    gazeLoadingSub:'First run downloads a face model (a few MB). Please wait… If it never responds, the model host may be unreachable from your network.',
+    gazeLoading:'Loading tracking library',
+    gazeLoadingSub:'First run fetches js-aruco2 (~26 KB, pure JS, no model, no dependencies). Should be done in under a second.',
     gazeFailHint:'Gaze failed to start — switched to mouse',
     credit:'An open ink-painting experiment',
     hintHTML:'<kbd>M</kbd> mode<span class="sep">·</span><kbd>← →</kbd> scene<span class="sep">·</span><kbd>1 2 3</kbd> style<br><kbd>wheel</kbd> radius<span class="sep">·</span><kbd>[ ]</kbd> sensitivity<span class="sep">·</span><kbd>X</kbd> mirror<span class="sep">·</span><kbd>F</kbd> fullscreen<span class="sep">·</span><kbd>Q</kbd> quit',
@@ -1193,16 +1193,30 @@ const M={
     needCam:true,
   },
   gaze:{
-    icon:'👁',nameKey:'modeGaze',
+    icon:'👓',nameKey:'modeGaze',
     init(){ enterGaze(); },
-    spot(){
-      if(!S.gazeReady) return null;
-      const p = predictGaze();
-      return p ? {x:p.x, y:p.y, radius:S.radius} : null;
+    spot(fd){
+      if(!S.gazeReady || !gazeFit || !arDetector) return null;
+      const f = getArFrame() || fd; // prefer unmirrored frame from the side canvas
+      if(!f) return null;
+      let markers;
+      try{ markers = arDetector.detect(f); }
+      catch(e){ return null; }
+      if(!markers.length){
+        // Marker briefly off-frame — hold last smoothed position so the spotlight doesn't disappear
+        return S.gazeSmooth ? {x:S.gazeSmooth.x, y:S.gazeSmooth.y, radius:S.radius} : null;
+      }
+      const c = markerCenter(markers[0], f.width, f.height);
+      const px = gazeFit.x[0] + gazeFit.x[1]*c.nx + gazeFit.x[2]*c.ny;
+      const py = gazeFit.y[0] + gazeFit.y[1]*c.nx + gazeFit.y[2]*c.ny;
+      const a = 0.45; // ArUco is sub-pixel precise → lighter smoothing than iris
+      if(!S.gazeSmooth) S.gazeSmooth={x:px,y:py};
+      else{ S.gazeSmooth.x=a*px+(1-a)*S.gazeSmooth.x; S.gazeSmooth.y=a*py+(1-a)*S.gazeSmooth.y; }
+      return {x:S.gazeSmooth.x, y:S.gazeSmooth.y, radius:S.radius};
     },
     cln(){ exitGaze(); },
-    ex(){ return S.gazeReady ? '' : `👁 ${t('gazeCalibrating')}`; },
-    needCam:true, // app provides the camera; we feed frames to FaceLandmarker
+    ex(){ return S.gazeReady ? '' : `👓 ${t('gazeCalibrating')}`; },
+    needCam:true, // app provides the camera; we run ArUco on the camera ImageData
   },
   mouse:{
     icon:'🖱',nameKey:'modeMouse',
@@ -1212,68 +1226,95 @@ const M={
 };
 
 /* ───────────────────────────────────────────────────────────
-   Eye gaze — MediaPipe FaceLandmarker (478 landmarks + iris)
-   + per-user click calibration → 3-param linear regression
+   Eye gaze — ArUco marker on glasses
 
-   How it works:
-   1. FaceLandmarker (Tasks API) gives iris centers + eye-corner landmarks each frame
-   2. Normalize iris offset by eye width → roughly head-pose-invariant (dx, dy) feature
-   3. During calibration the user looks at 9 dots × 3 clicks each. Each click pairs
-      (avgDx, avgDy) with the dot's screen position
-   4. Fit two linear models — screen_x = a + b·dx + c·dy, similarly y — by closed-form
-      3×3 least squares
-   5. At runtime, predict (x,y) from current (dx,dy), exponential-smooth, drive spotlight
+   The user wears glasses with a printed ArUco marker (≈4-5cm) stuck on
+   the bridge or frame. js-aruco2 detects the marker (sub-pixel) every
+   frame; the marker center serves as a "head/gaze proxy" — most
+   real-life "looking somewhere" involves the head turning, so marker
+   position tracks gaze direction faithfully enough for a forgiving art
+   piece.
+
+   Pipeline:
+   1. Lazy-load js-aruco2 (UMD, ~26 KB, single file) and instantiate
+      AR.Detector (default ARUCO dictionary).
+   2. 5-dot calibration (4 corners + center), 2 clicks each. Each click
+      captures the marker's normalized image-space center alongside the
+      dot's screen position.
+   3. Closed-form 3-param linear least squares fits screen_x and
+      screen_y from (marker_nx, marker_ny). Sub-pixel detection means
+      10 samples are plenty.
+   4. At runtime, detect → linear-map → exponential smoothing → spot.
    ─────────────────────────────────────────────────────────── */
-let faceLandmarker=null, flLoading=null;
+let arLoaded=false, arLoading=null, arDetector=null;
 let gazeFit=null;          // {x:[a,b,c], y:[a,b,c]} after calibration
-let calibSamples=[];       // [{dx,dy,tx,ty}, ...] collected during calibration
+let calibSamples=[];       // [{nx,ny,tx,ty}, ...] collected during calibration
+let arCvs=null, arCtx=null; // separate unmirrored canvas for ArUco (mirrored frames break detection)
 
-function loadFaceLandmarker(){
-  if(faceLandmarker) return Promise.resolve();
-  if(flLoading) return flLoading;
-  flLoading = (async()=>{
-    const mod = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs');
-    const { FaceLandmarker, FilesetResolver } = mod;
-    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm');
-    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-      baseOptions:{
-        modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-        delegate:'GPU',
-      },
-      runningMode:'VIDEO',
-      numFaces:1,
-      outputFacialTransformationMatrixes:false,
-    });
+function loadArUco(){
+  if(arLoaded && arDetector) return Promise.resolve();
+  if(arLoading) return arLoading;
+  // The jsDelivr +esm bundle has a CommonJS-to-ESM transform bug (writes to
+  // `(void 0).CV` because ESM modules have undefined top-level `this`). Workaround:
+  // load the raw src/*.js files as classic scripts. Each one uses
+  // `var X = X || {}; this.X = X;` which works in classic scripts where top-level
+  // `this === window`. src/aruco.js's broken `require('./cv').CV` branch is bypassed
+  // because `this.CV` is already truthy from the earlier cv.js load.
+  arLoading = (async()=>{
+    const base = 'https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
+    for(const file of ['cv.js', 'svd.js', 'posit1.js', 'aruco.js']){
+      await new Promise((res, rej)=>{
+        const s = document.createElement('script');
+        s.src = base + file;
+        s.async = false;
+        s.onload = res;
+        s.onerror = ()=>rej(new Error('Failed to load js-aruco2 dependency: '+file));
+        document.head.appendChild(s);
+      });
+    }
+    if(!window.AR || !window.AR.Detector){
+      throw new Error('js-aruco2 src files loaded but window.AR.Detector is still undefined');
+    }
+    arDetector = new window.AR.Detector();
+    arLoaded = true;
   })();
-  return flLoading;
+  return arLoading;
 }
 
-// MediaPipe FaceMesh 478-landmark indices (refineLandmarks gives iris):
-//   Right eye outer corner: 33, inner corner: 133, iris center: 468
-//   Left  eye outer corner: 263, inner corner: 362, iris center: 473
-function irisFeatures(lm){
-  const ro=lm[33], ri=lm[133], rIris=lm[468];
-  const lo=lm[263], li=lm[362], lIris=lm[473];
-  if(!ro||!ri||!rIris||!lo||!li||!lIris) return null;
-  const rEx=(ro.x+ri.x)/2, rEy=(ro.y+ri.y)/2;
-  const lEx=(lo.x+li.x)/2, lEy=(lo.y+li.y)/2;
-  const rEw=Math.hypot(ro.x-ri.x, ro.y-ri.y)||1e-6;
-  const lEw=Math.hypot(lo.x-li.x, lo.y-li.y)||1e-6;
-  const rdx=(rIris.x-rEx)/rEw, rdy=(rIris.y-rEy)/rEw;
-  const ldx=(lIris.x-lEx)/lEw, ldy=(lIris.y-lEy)/lEw;
-  return { dx:(rdx+ldx)/2, dy:(rdy+ldy)/2 };
+// Get an UNMIRRORED camera frame (ArUco markers are not mirror-symmetric;
+// detection silently fails on a flipped image). We keep a side canvas
+// that always paints the raw video, regardless of S.mirrorX.
+function getArFrame(){
+  if(!vid || vid.readyState<2 || !VW || !VH) return null;
+  if(!arCvs){
+    arCvs = document.createElement('canvas');
+    arCtx = arCvs.getContext('2d', { willReadFrequently:true });
+  }
+  if(arCvs.width !== VW || arCvs.height !== VH){
+    arCvs.width = VW; arCvs.height = VH;
+  }
+  arCtx.drawImage(vid, 0, 0, VW, VH);
+  return arCtx.getImageData(0, 0, VW, VH);
 }
 
-// 3×3 least-squares: solve y = a + b·x1 + c·x2 via normal equations + cofactor invert
+function markerCenter(m, w, h){
+  const c = m.corners;
+  return {
+    nx: (c[0].x+c[1].x+c[2].x+c[3].x)/(4*w),
+    ny: (c[0].y+c[1].y+c[2].y+c[3].y)/(4*h),
+  };
+}
+
+// 3×3 least squares: solve y = a + b·x1 + c·x2 via normal equations + cofactor inversion.
+// Same closed-form as before; here x1=nx, x2=ny (marker center in [0,1]² camera coords).
 function fitLinear(samples, getY){
   let n=0, Sx=0, Sy=0, Sxx=0, Syy=0, Sxy=0;
   let Sz=0, Sxz=0, Syz=0;
   for(const s of samples){
-    const x=s.dx, y=s.dy, z=getY(s);
+    const x=s.nx, y=s.ny, z=getY(s);
     n++; Sx+=x; Sy+=y; Sxx+=x*x; Syy+=y*y; Sxy+=x*y;
     Sz+=z; Sxz+=x*z; Syz+=y*z;
   }
-  // Symmetric 3x3 normal matrix M = [[n,Sx,Sy],[Sx,Sxx,Sxy],[Sy,Sxy,Syy]], rhs r = [Sz,Sxz,Syz]
   const C11=Sxx*Syy - Sxy*Sxy;
   const C12=-(Sx*Syy - Sxy*Sy);
   const C13=Sx*Sxy - Sxx*Sy;
@@ -1308,8 +1349,9 @@ async function enterGaze(){
   gazeFit=null; calibSamples=[];
   showGazeLoading();
   try{
-    await loadFaceLandmarker();
+    await loadArUco();
     if(S.mode!=='gaze'){ hideCalibration(); return; }
+    if(!arDetector) arDetector = new AR.Detector();
     // Camera was set up by start() because gaze.needCam=true. Wait briefly if not ready yet.
     for(let i=0;i<20 && (!vid || vid.readyState<2); i++){ await new Promise(r=>setTimeout(r,100)); }
     if(S.mode!=='gaze'){ hideCalibration(); return; }
@@ -1323,7 +1365,7 @@ async function enterGaze(){
 function exitGaze(){
   S.gazeReady=false; S.gazePos=null; gazeFit=null; calibSamples=[];
   hideCalibration();
-  // Keep faceLandmarker cached across mode switches to avoid re-downloading model
+  // Keep arDetector cached across mode switches; the side canvas is reused too.
 }
 
 function gazeFallback(err){
@@ -1344,9 +1386,9 @@ function gazeFallback(err){
   btn.style.display='';
 }
 
-/* ── Gaze calibration ── */
-const CALIB_POINTS=[[15,18],[50,18],[85,18],[15,50],[50,50],[85,50],[15,82],[50,82],[85,82]];
-const CLICKS_PER_DOT=3;
+/* ── Gaze calibration: 5 dots (4 corners + center), 2 clicks each = 10 samples ── */
+const CALIB_POINTS=[[12,15],[88,15],[50,50],[12,85],[88,85]];
+const CLICKS_PER_DOT=2;
 function startCalibration(){
   S.gazeReady=false;
   gazeFit=null; calibSamples=[];
@@ -1365,18 +1407,20 @@ function startCalibration(){
     d.textContent=CLICKS_PER_DOT;
     let clicks=0;
     d.addEventListener('click',()=>{
-      // On click: take a fresh face reading and pair iris-features with this dot's screen pos
-      if(faceLandmarker && vid && vid.readyState>=2){
+      // On click: grab an unmirrored frame, detect the marker, pair its center with this dot.
+      if(arDetector){
         try{
-          const res = faceLandmarker.detectForVideo(vid, performance.now());
-          const lm = res && res.faceLandmarks && res.faceLandmarks[0];
-          const feat = lm && irisFeatures(lm);
-          if(feat){
-            calibSamples.push({
-              dx:feat.dx, dy:feat.dy,
-              tx:window.innerWidth*px/100,
-              ty:window.innerHeight*py/100,
-            });
+          const fd = getArFrame();
+          if(fd){
+            const markers = arDetector.detect(fd);
+            if(markers.length){
+              const c = markerCenter(markers[0], fd.width, fd.height);
+              calibSamples.push({
+                nx:c.nx, ny:c.ny,
+                tx:window.innerWidth*px/100,
+                ty:window.innerHeight*py/100,
+              });
+            }
           }
         }catch(e){ console.warn('[gaze] capture on click failed:',e); }
       }
@@ -1394,14 +1438,14 @@ function startCalibration(){
 }
 
 function finishCalibration(){
-  if(calibSamples.length < 4){
-    gazeFallback(new Error('Not enough calibration samples — face not detected during clicks. Improve lighting and recalibrate.'));
+  if(calibSamples.length < 3){
+    gazeFallback(new Error('Not enough calibration samples — ArUco marker not detected. Check: marker printed and stuck on glasses, good even lighting, marker fully visible to the camera, not severely tilted.'));
     return;
   }
   const bx = fitLinear(calibSamples, s=>s.tx);
   const by = fitLinear(calibSamples, s=>s.ty);
   if(!bx || !by){
-    gazeFallback(new Error('Calibration regression failed (singular matrix). Try recalibrating with slight head/eye variation between clicks.'));
+    gazeFallback(new Error('Calibration regression failed (singular matrix). The marker may have been in the same spot for every click — turn your head naturally toward each dot before clicking.'));
     return;
   }
   gazeFit = { x:bx, y:by };
@@ -1412,28 +1456,6 @@ function finishCalibration(){
   setTimeout(()=>{ cal.classList.remove('show'); flashHint(t('firstHintGaze')); },700);
 }
 
-// Called from M.gaze.spot() each render frame
-let _gazeFrame=0;
-function predictGaze(){
-  if(!gazeFit || !faceLandmarker || !vid || vid.readyState<2) return null;
-  // Throttle FaceLandmarker to every other render frame — it dominates per-frame cost
-  if((++_gazeFrame & 1) === 0 && S.gazeSmooth){
-    return { x:S.gazeSmooth.x, y:S.gazeSmooth.y };
-  }
-  let feat=null;
-  try{
-    const res = faceLandmarker.detectForVideo(vid, performance.now());
-    const lm = res && res.faceLandmarks && res.faceLandmarks[0];
-    feat = lm && irisFeatures(lm);
-  }catch(e){ /* drop the frame */ }
-  if(!feat) return S.gazeSmooth ? { x:S.gazeSmooth.x, y:S.gazeSmooth.y } : null;
-  const px = gazeFit.x[0] + gazeFit.x[1]*feat.dx + gazeFit.x[2]*feat.dy;
-  const py = gazeFit.y[0] + gazeFit.y[1]*feat.dx + gazeFit.y[2]*feat.dy;
-  const a = 0.30;
-  if(!S.gazeSmooth) S.gazeSmooth={x:px,y:py};
-  else{ S.gazeSmooth.x=a*px+(1-a)*S.gazeSmooth.x; S.gazeSmooth.y=a*py+(1-a)*S.gazeSmooth.y; }
-  return { x:S.gazeSmooth.x, y:S.gazeSmooth.y };
-}
 function hideCalibration(){ document.getElementById('calib').classList.remove('show'); }
 
 /* ───────────────────────────────────────────────────────────
@@ -1666,7 +1688,7 @@ document.addEventListener('keydown',e=>{
     case'[':S.camSens=parseFloat(Math.max(0.5,S.camSens-0.2).toFixed(1));break;
     case']':S.camSens=parseFloat(Math.min(5.0,S.camSens+0.2).toFixed(1));break;
     case'r':S.smooth.x=S.smooth.y=-1;break;
-    case'c':if(S.mode==='gaze'&&faceLandmarker)startCalibration();break;
+    case'c':if(S.mode==='gaze'&&arDetector)startCalibration();break;
     case'x':S.mirrorX=!S.mirrorX;break;
     case'd':if(e.shiftKey){
       S.debug=!S.debug;

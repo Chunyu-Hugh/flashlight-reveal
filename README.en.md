@@ -23,7 +23,7 @@ Control a spotlight with your webcam flashlight or hand gestures to reveal a liv
 |---|---|
 | 🔦 **Flashlight** | Point a phone flashlight at the webcam; brightest spot becomes the spotlight |
 | ✋ **Hand Gesture** | MediaPipe hand tracking; an open palm drives the spotlight |
-| 👁 **Eye Gaze** | MediaPipe FaceLandmarker + iris geometry — drive the spotlight with your eyes (requires calibration; accuracy is limited, see below) |
+| 👓 **Gaze · Glasses** | Wear glasses with an ArUco marker stuck on them — drive the spotlight by turning your head/gaze. Sub-pixel precision, no model download, requires printing one paper marker (see below) |
 | 🖱 **Mouse** | Trackpad / cursor follows naturally, no camera needed |
 | 🏔 **5 Scenes** | Mountains, bamboo, snow, blossoms, starry sky — AI-generated |
 | 🎬 **Animations** | Birds, snowflakes, petals, fireflies, shooting stars — visible only inside the spotlight |
@@ -39,7 +39,7 @@ Control a spotlight with your webcam flashlight or hand gestures to reveal a liv
 |---|---|
 | Rendering | Canvas 2D API |
 | Gesture | [MediaPipe Hands](https://ai.google.dev/edge/mediapipe) (via CDN) |
-| Eye gaze | [MediaPipe FaceLandmarker (Tasks Vision)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js) — 478 landmarks with iris + hand-rolled 3-parameter linear regression |
+| Eye gaze | [js-aruco2](https://github.com/damianofalcioni/js-aruco2) — pure-JS ArUco marker detection (~26 KB), sub-pixel precision + hand-rolled 3-parameter linear regression |
 | Camera | `getUserMedia` API |
 | Edge detection | Sobel operator (hand-rolled in JS) |
 | Fonts | Noto Serif SC / TC + EB Garamond (Google Fonts) |
@@ -108,43 +108,94 @@ See [DESIGN.md](DESIGN.md).
 
 Brand colors: parchment `#f5f4ed` · terracotta `#c96442` · ink black `#141413`
 
-## 👁 About Eye Gaze
+## 👓 About Gaze · Glasses Mode
 
-> **TL;DR: pure-browser approach, accuracy is limited.** Entering Eye Gaze mode prompts you for a ~30-second 9-point calibration. Do it carefully and the precision is usable; do it sloppily and the spotlight wanders.
+> **TL;DR: downgrade the "eye tracking" problem to a "head-pose tracking" problem by sticking an ArUco marker on your glasses.** Sub-pixel precision, no model download, the whole tracking library is 26 KB. The cost: print one piece of paper and wear glasses.
+
+### Why this approach
+
+Every browser eye-tracking method (WebGazer / iris geometry / deep gaze models) has the same two problems: **limited accuracy** (typically ~3–5° error) and **head movement breaks it**. This project is an art installation — we want the spotlight to follow precisely, and users should be free to move their head.
+
+Observation: **when people "look at" something, they mostly turn their head**. Eyeball-only movement only ranges a few degrees off the head direction. So tracking *head pose* already solves ~95% of the "look-and-reveal" intent.
+
+ArUco markers were **designed for high-precision tracking** in computer vision: black-and-white 2D fiducials, sub-pixel detection, robust across distances and angles, with a tiny (26 KB) JS library. Stick one on glasses → tracking it = tracking head pose = looks like gaze control.
 
 ### What's under the hood
 
 | Layer | How it works |
 |---|---|
-| Face / iris detection | [MediaPipe FaceLandmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js) — 478 landmarks including 10 iris points, loaded via jsDelivr CDN; the model file (~3.6 MB) is fetched once from Google's public storage and then cached |
-| Gaze feature | Iris center offset from the eye-corner midpoint, normalized by eye width → `(dx, dy)`, roughly head-pose invariant (this is the key trick) |
-| Screen mapping | 9 calibration dots × 3 clicks each → 27 `(dx, dy, screen_x, screen_y)` samples → closed-form 3×3 least squares fits two linear models: `screen_x = a + b·dx + c·dy`, same for y |
-| Runtime | FaceLandmarker runs every other frame (~30 Hz), exponentially smoothed to damp jitter |
+| Marker detection | [js-aruco2](https://github.com/damianofalcioni/js-aruco2) — pure JS, ~26 KB, via jsDelivr CDN, default ARUCO dictionary, sub-pixel precision |
+| Gaze feature | Average of the marker's 4 corners → center, normalized to camera coords `(nx, ny) ∈ [0,1]²` |
+| Screen mapping | 5 calibration dots (4 corners + center) × 2 clicks each → 10 `(nx, ny, screen_x, screen_y)` samples → closed-form 3×3 least squares fits two linear models |
+| Mirror handling | The app's mirror-flip toggle doesn't affect detection: an internal always-unmirrored canvas feeds ArUco |
 
-**No license keys, no third-party SDK, no data leaving your device, no SharedArrayBuffer/COI headache.** All the code lives in [`web/index.html`](web/index.html) — search for `enterGaze`, `irisFeatures`, `fitLinear`, `predictGaze`.
+**No license keys, no third-party SDK, no model download (a 26 KB JS file replaces the previous ~3.6 MB model), no WASM, no SharedArrayBuffer.** All the code lives in [`web/index.html`](web/index.html) — search for `enterGaze`, `loadArUco`, `markerCenter`, `fitLinear`.
 
-### Honest accuracy
+### Setup (one approach, ~5 minutes)
 
-In **controlled conditions** (even lighting, stable head, ~50–70 cm from the screen): roughly **3–5°** of visual angle, which drifts the spotlight center by 100–200 pixels. The default spotlight radius (140 px) absorbs that.
+> My version uses the most boring possible recipe — **one 50 mm marker on the bridge of a pair of glasses**. That gets the tracking working; the rest is **design space** (see below).
 
-Things that make it worse:
-- **Head movement** — we don't model head pose yet, so changing posture after calibration desyncs everything
-- **Backlight / harsh shadows** — FaceLandmarker mis-locates the iris
-- **Sloppy calibration** — every click captures your *current* eye state. If you're not really looking at the dot, you're teaching the model the wrong association
+1. **Generate an ArUco marker**: visit [chev.me/arucogen](https://chev.me/arucogen/), pick dictionary **"Original ArUco"**, ID 0 (any works), size **50 mm**, then **Save as PNG / Print**
+2. **Print and cut it out** (plain A4 paper is fine)
+3. **Stick it on your glasses**: bridge (above the nose) or one corner of the frame both work — **firmly attached and facing the camera**
+4. **Keep these glasses around** — next time you enter Gaze mode you just put them on
 
 ### Calibration walkthrough
 
-1. Sit in evenly lit place with the **screen squarely in front of your face**
-2. Pick Eye Gaze mode, let the model load (a few seconds the first time)
-3. 9 dots appear → **stare at each one and click it 3 times**, really looking before clicking
-4. After 27 clicks the regression fits → spotlight follows your eyes
-5. Drifting? Press **`C`** to recalibrate (the most common fix)
+1. Put on the glasses, **face the camera**, **even lighting**
+2. Pick "Gaze · Glasses" mode (first run pulls 26 KB of js-aruco2 from jsDelivr — under a second)
+3. 5 dots appear (4 corners + center) → **naturally turn your head/gaze toward each one** and click, 2 clicks per dot
+4. After 10 clicks the regression fits → spotlight follows your glasses
+5. Drifting? Press **`C`** to recalibrate
 
-### What we haven't done yet (future upgrades)
+### 🎨 Design space: the art of hiding it
 
-- **Add head pose** (MediaPipe also exposes `facialTransformationMatrixes`) — resilient to head movement
-- **L2CS-Net / GazeML via ONNX Runtime Web** — deep gaze model, ~3° accuracy but needs WebGPU + ~25 MB model + the same screen-mapping calibration. See Roadmap
-- **Denser calibration** — 15 dots with deliberate small head shifts, more robust to posture drift
+This is the **most community-friendly part of the project**: the tracking already works, so what's left is **how to hide the marker so visitors don't see it**. I shipped a boring baseline — please do better.
+
+**Customizable axes:**
+
+| Axis | Range | Tradeoff |
+|---|---|---|
+| Size | 10 mm – 80 mm | Bigger = longer detection distance. 10 mm needs the camera within ~30 cm, 80 mm reaches 1 m+ |
+| Count | Start with 1 | Multiple markers give redundancy against occlusion (tweak the code: default uses `markers[0]`, switch to averaging all corners across markers) |
+| Location | Bridge / frame corner / temple / hat brim / clothing | The farther from the front of the face, the better the disguise — but turning your head will push the marker out of the camera's view sooner |
+| Dictionary | `ARUCO` (default, 5×5, 1024 IDs) / `ARUCO_MIP_36h12` (more robust) | Default is fine; switch only if detection feels jittery |
+
+**A few ways to disguise the marker as something else:**
+
+- 👓 **On glasses**: stuck on the back of a temple — visitors can't see it from the front, but a side camera angle can catch it (paired with an angled camera setup)
+- 💍 **As jewelry**: brooch, lapel pin, earring, hair clip, ring — a marker doesn't have to *look like* a marker
+- 🎩 **As a prop**: inside a hat brim (take the hat off → tracking off), tie clip, the slats of a folding fan — what you're tracking isn't your head but the thing you're holding
+- 🖌 **As decoration**: an "ink seal" on a wall, ornament on a picture frame — the marker lives in the scene itself
+- 🎭 **Multi-marker array**: 4 small markers arranged as a diamond decorative pattern, redundant under occlusion, individually invisible-looking
+
+**Where to edit in code:**
+
+| To change | Edit in `web/index.html` |
+|---|---|
+| Number / positions of calibration dots | `CALIB_POINTS` constant (default: 4 corners + center, 5 points) |
+| Clicks per dot | `CLICKS_PER_DOT` (default: 2) |
+| ArUco dictionary | `new AR.Detector({dictionaryName:'ARUCO_MIP_36h12'})` |
+| Average across multiple markers | In `M.gaze.spot`, replace `markers[0]` with a corner-average over all detected markers |
+| Smoothing strength | `const a=0.45` inside `spot` (higher = tighter and twitchier; lower = smoother and laggier) |
+
+**Got a design / want to show off your glasses / want to propose another approach? → [Discussions](../../discussions) or [open an issue](../../issues/new?template=new_modality.md).** This is an art installation — **the form is part of the content**.
+
+### Honest accuracy
+
+ArUco detection itself is sub-pixel — **about an order of magnitude tighter than iris-geometry**, so the spotlight should track quite closely.
+
+Things that can still fail:
+- **Marker occluded** — head turned too far, hair in the way, hand in the way → no detection, spotlight holds at the last position
+- **Marker glare / dirty camera** — camera can't read the black-and-white squares → detection fails
+- **Calibration "looking" without turning the head** — ArUco tracks head pose; if you only move your eyes during calibration, all 5 sample points end up at nearly the same marker position and the regression goes singular (`finishCalibration` will error out and prompt a redo)
+- **Too far from the camera** — marker too small in frame (< ~30 px), ArUco won't lock on
+
+### Not built yet (future upgrades)
+
+- **Multiple markers + homography** — 4 markers → 8 corner points → fit a homography, more robust to perspective
+- **Combine with iris refinement** (FaceMesh on top of the marker baseline) — covers eye micro-movements too
+- **In-page marker generator** — render a printable marker right on the page, skip the chev.me detour
 
 PRs welcome — open an issue first.
 
